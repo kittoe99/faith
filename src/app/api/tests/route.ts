@@ -1,63 +1,41 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { Database } from '@/types/database.types';
+import { db } from '@/lib/sqlite';
+import { randomUUID } from 'crypto';
 
-// Initialize Supabase client for server-side operations
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-// Use service role key if available, otherwise fall back to anon key so build doesn't fail
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-// Supabase client will be (re)created inside each handler to avoid evaluating at build if env vars missing
-function getSupabase() {
-  if (!supabaseUrl || !supabaseKey) {
-    return null;
-  }
-  return createClient<Database>(supabaseUrl, supabaseKey);
-}
-
-// GET /api/tests - Get all tests
+// GET /api/tests
 export async function GET() {
   try {
-    const { data, error } = await supabase
-      .from('test')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    
-    return NextResponse.json({ data });
-  } catch (error: any) {
+    const rows = db.prepare('SELECT * FROM test ORDER BY created_at DESC').all();
+    return NextResponse.json({ data: rows });
+  } catch (error) {
     console.error('Error fetching tests:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch tests', details: error.message },
+      { error: 'Failed to fetch tests' },
       { status: 500 }
     );
   }
 }
 
-// POST /api/tests - Create a new test
+// POST /api/tests
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    
-    const supabase = getSupabase();
-    if (!supabase) {
-      return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });
+    const { content } = await request.json();
+    if (!content) {
+      return NextResponse.json(
+        { error: 'Content is required' },
+        { status: 400 }
+      );
     }
-
-    const { data, error } = await supabase
-      .from('test')
-      .insert(body)
-      .select()
-      .single();
     
-    if (error) throw error;
+    const id = randomUUID();
+    db.prepare('INSERT INTO test (id, content) VALUES (?, ?)').run(id, content);
     
-    return NextResponse.json({ data });
-  } catch (error: any) {
+    const row = db.prepare('SELECT * FROM test WHERE id = ?').get(id);
+    return NextResponse.json({ data: row });
+  } catch (error) {
     console.error('Error creating test:', error);
     return NextResponse.json(
-      { error: 'Failed to create test', details: error.message },
+      { error: 'Failed to create test' },
       { status: 500 }
     );
   }
