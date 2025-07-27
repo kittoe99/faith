@@ -6,22 +6,29 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:migrate": "node -r ts-node/register/transpile-only -r tsconfig-paths/register scripts/migrate.ts",
+    "db:test": "node -r ts-node/register/transpile-only -r tsconfig-paths/register scripts/test-db.ts",
+    "db:list-tables": "node -e \"require('dotenv').config(); const { DatabaseService } = require('./lib/supabase-admin'); DatabaseService.listTables().then(tables => console.log('Tables:', tables)).catch(console.error);\""
   },
   "dependencies": {
-    "next": "14.0.0",
+    "@supabase/supabase-js": "^2.52.1",
+    "next": "^14.2.30",
     "react": "^18",
     "react-dom": "^18"
   },
   "devDependencies": {
-    "@types/node": "^20",
+    "@types/node": "^20.19.9",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.0.1",
+    "dotenv": "^17.2.1",
     "eslint": "^8",
     "eslint-config-next": "14.0.0",
     "postcss": "^8",
     "tailwindcss": "^3.3.0",
-    "typescript": "^5"
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.8.3"
   }
 }
