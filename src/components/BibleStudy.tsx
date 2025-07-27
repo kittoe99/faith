@@ -72,7 +72,7 @@ export default function BibleStudy() {
                   {books.map((book) => (
                     <button
                       key={book.bookid}
-                      className={`p-2 text-left rounded ${selectedBook === book.bookid ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'}`}
+                      className={`p-2 text-left rounded ${selectedBook?.bookid === book.bookid ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'}`}
                       onClick={() => {
                         setSelectedBook(book);
                         setSelectedChapter(null);
