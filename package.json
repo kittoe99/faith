@@ -6,10 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "db:migrate": "node -r ts-node/register/transpile-only -r tsconfig-paths/register scripts/migrate.ts",
-    "db:test": "node -r ts-node/register/transpile-only -r tsconfig-paths/register scripts/test-db.ts",
-    "db:list-tables": "node -e \"require('dotenv').config(); const { DatabaseService } = require('./lib/supabase-admin'); DatabaseService.listTables().then(tables => console.log('Tables:', tables)).catch(console.error);\""
+    "lint": "next lint"
+
+
+
   },
   "dependencies": {
     "better-sqlite3": "^9.0.0",
