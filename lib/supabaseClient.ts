@@ -4,12 +4,14 @@ import { createBrowserSupabaseClient } from '@supabase/auth-helpers-nextjs'
 // Requires env vars NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 export const supabase = createBrowserSupabaseClient({
+  /* eslint-disable-next-line @typescript-eslint/consistent-type-assertions */
   cookieOptions: {
     name: 'supabase-auth',
-    lifetime: 60 * 60 * 24 * 7, // 7 days
-    sameSite: 'lax',
+    maxAge: 60 * 60 * 24 * 7, // 7 days
     path: '/',
-  },
+    sameSite: 'lax',
+    secure: true,
+  } as any,
 })
 
 // Helper function to check if Supabase is properly configured
