@@ -23,7 +23,7 @@ export default function AuthPage() {
                   inputLabelText: "#1e3a8a", // blue-900
                   inputText: "#1e293b", // slate-800
                 },
-                radii: { input: "0.5rem", button: "0.5rem" },
+                radii: { inputBorderRadius: "0.5rem", buttonBorderRadius: "0.5rem" },
               },
             },
           }}
