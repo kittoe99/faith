@@ -87,33 +87,37 @@ export async function getBibleBooks(): Promise<BibleBook[]> {
  * Note: This is a mock implementation. In a real app, you would fetch from a Bible API
  */
 export async function getBibleChapter(bookName: string, chapter: number): Promise<BibleVerse[]> {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 200));
-  
-  const book = BIBLE_BOOKS.find(b => b.name === bookName);
+  // Look up book metadata to map to numeric id & validations
+  const book = BIBLE_BOOKS.find(b => b.name.toLowerCase() === bookName.toLowerCase());
   if (!book) {
     throw new Error(`Book "${bookName}" not found`);
   }
-  
+
   if (chapter < 1 || chapter > book.chapters) {
-    throw new Error(`Chapter ${chapter} not found in ${bookName}`);
+    throw new Error(`Chapter ${chapter} out of range for ${bookName}`);
   }
-  
-  // Mock verses - in a real implementation, you'd fetch from a Bible API
-  // For now, return placeholder verses
-  const mockVerses: BibleVerse[] = [];
-  const verseCount = getVerseCount(book.bookid, chapter);
-  
-  for (let i = 1; i <= verseCount; i++) {
-    mockVerses.push({
-      bookid: book.bookid,
-      chapter: chapter,
-      verse: i,
-      text: `This is verse ${i} of ${bookName} chapter ${chapter}. To integrate with a real Bible API, replace this mock implementation with calls to services like Bible Gateway API, ESV API, or Bible.com API.`
-    });
+
+  // Fetch verses from Bible-API – e.g. https://bible-api.com/john%203
+  const ref = encodeURIComponent(`${bookName} ${chapter}`);
+  const res = await fetch(`https://bible-api.com/${ref}`);
+
+  if (!res.ok) {
+    throw new Error(`Bible API request failed with status ${res.status}`);
   }
-  
-  return mockVerses;
+
+  const data = await res.json();
+  if (!data || !Array.isArray(data.verses)) {
+    throw new Error('Unexpected Bible API response');
+  }
+
+  const verses: BibleVerse[] = data.verses.map((v: any) => ({
+    bookid: book.bookid,
+    chapter: v.chapter,
+    verse: v.verse,
+    text: v.text.trim(),
+  }));
+
+  return verses;
 }
 
 /**

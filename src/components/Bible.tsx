@@ -93,6 +93,21 @@ export default function Bible() {
     }
   }
 
+  // Mobile dropdown handlers
+  const handleBookSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = Number(e.target.value);
+    const book = books.find(b => b.bookid === id);
+    if (book) {
+      fetchChapter(book, 1);
+    }
+  };
+
+  const handleChapterSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    if (!selectedBook) return;
+    const chap = Number(e.target.value);
+    fetchChapter(selectedBook, chap);
+  };
+
   return (
     <section className="content-section active">
       <div className="max-w-7xl mx-auto">
@@ -116,9 +131,43 @@ export default function Bible() {
           </div>
         )}
 
+        {/* Mobile Book/Chapter Selectors */}
+        {books.length > 0 && (
+          <div className="lg:hidden mb-6">
+            <div className="mb-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Book</label>
+              <select
+                value={selectedBook?.bookid ?? ''}
+                onChange={handleBookSelect}
+                className="w-full border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-amber-500"
+              >
+                <option value="" disabled>Select a book</option>
+                {books.map((b) => (
+                  <option key={b.bookid} value={b.bookid}>{b.name}</option>
+                ))}
+              </select>
+            </div>
+            {selectedBook && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Chapter</label>
+                <select
+                  value={selectedChapter ?? ''}
+                  onChange={handleChapterSelect}
+                  className="w-full border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-amber-500"
+                >
+                  <option value="" disabled>Select a chapter</option>
+                  {Array.from({ length: selectedBook.chapters }, (_, i) => i + 1).map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Sidebar - Book Selection */}
-          <div className="lg:col-span-1">
+          <div className="hidden lg:block lg:col-span-1">
             <div className="bg-white rounded-xl shadow-lg p-6 sticky top-4">
               <div className="mb-4">
                 <h3 className="text-lg font-semibold text-gray-800 mb-3">Books of the Bible</h3>
