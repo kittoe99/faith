@@ -1,13 +1,16 @@
-import { createClient } from '@supabase/supabase-js'
+import { createBrowserSupabaseClient } from '@supabase/auth-helpers-nextjs'
 
 // Singleton supabase client for both client & server usage
 // Requires env vars NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key'
-
-// Create client with fallback values for build time
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createBrowserSupabaseClient({
+  cookieOptions: {
+    name: 'supabase-auth',
+    lifetime: 60 * 60 * 24 * 7, // 7 days
+    sameSite: 'lax',
+    path: '/',
+  },
+})
 
 // Helper function to check if Supabase is properly configured
 export const isSupabaseConfigured = () => {

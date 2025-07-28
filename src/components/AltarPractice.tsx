@@ -1,16 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { AltarPracticeService } from '../../lib/altar-practice-service'
+import { AltarPractice as AltarPracticeType, AltarFormData } from '../../types/altar.types'
 
-interface AltarFormData {
-  name: string
-  type: string
-  purpose: string
-  customPurpose: string
-  practices: string[]
-  sacrifices: string[]
-  customItems: string[]
-}
+
 
 export default function AltarPractice() {
   const [currentStep, setCurrentStep] = useState(1)
@@ -26,7 +20,9 @@ export default function AltarPractice() {
   })
   const [customItemInput, setCustomItemInput] = useState('')
   const [view, setView] = useState('list') // 'list', 'create', 'detail'
-  const [altars, setAltars] = useState<any[]>([])
+  const [altars, setAltars] = useState<AltarPracticeType[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const altarTypes = {
     prayer: { icon: 'fas fa-fire', color: 'text-red-500', title: 'Digital Prayer Altar' },
@@ -56,11 +52,20 @@ export default function AltarPractice() {
   ]
 
   useEffect(() => {
-    // Load altars from localStorage
-    const savedAltars = localStorage.getItem('altars')
-    if (savedAltars) {
-      setAltars(JSON.parse(savedAltars))
+    const fetchAltars = async () => {
+      try {
+        setLoading(true)
+        const data = await AltarPracticeService.getAltarPractices()
+        setAltars(data)
+      } catch (err) {
+        console.error('Error fetching altar practices:', err)
+        setError('Failed to load altar practices')
+      } finally {
+        setLoading(false)
+      }
     }
+
+    fetchAltars()
   }, [])
 
   const updateProgressIndicators = (step: number) => {
@@ -120,29 +125,45 @@ export default function AltarPractice() {
     }))
   }
 
-  const handleSubmit = () => {
-    const newAltar = {
-      id: Date.now().toString(),
-      name: formData.name,
-      type: formData.type,
-      purpose: formData.purpose || formData.customPurpose,
-      practices: formData.practices,
-      sacrifices: formData.sacrifices,
-      customItems: formData.customItems,
-      createdAt: new Date().toISOString(),
-      entries: []
+  const handleSubmit = async () => {
+    // Validate form
+    if (!formData.name.trim()) {
+      alert('Please enter an altar name')
+      return
+    }
+    
+    if (!formData.purpose.trim() && !formData.customPurpose.trim()) {
+      alert('Please select or enter a purpose')
+      return
     }
 
-    const updatedAltars = [...altars, newAltar]
-    setAltars(updatedAltars)
-    localStorage.setItem('altars', JSON.stringify(updatedAltars))
+    try {
+      // Combine purpose and customPurpose
+      const purpose = formData.purpose || formData.customPurpose
+      
+      // Create the altar practice in Supabase
+      const newAltar = await AltarPracticeService.createAltarPractice({
+        name: formData.name,
+        type: formData.type,
+        purpose: purpose,
+        practices: formData.practices,
+        sacrifices: formData.sacrifices,
+        custom_items: formData.customItems
+      })
 
-    setShowSuccess(true)
-    setTimeout(() => {
-      setShowSuccess(false)
-      setView('list')
-      resetForm()
-    }, 2000)
+      // Update local state
+      setAltars(prev => [newAltar, ...prev])
+      
+      setShowSuccess(true)
+      setTimeout(() => {
+        setShowSuccess(false)
+        setView('list')
+        resetForm()
+      }, 2000)
+    } catch (error) {
+      console.error('Error creating altar practice:', error)
+      alert('Failed to create altar practice. Please try again.')
+    }
   }
 
   const resetForm = () => {
@@ -455,52 +476,69 @@ export default function AltarPractice() {
         </button>
       </div>
 
-      {altars.length === 0 ? (
-        <div className="text-center py-12">
-          <i className="fas fa-praying-hands text-gray-300 text-6xl mb-4"></i>
-          <h3 className="text-2xl font-semibold text-gray-700 mb-2">No Altars Created Yet</h3>
-          <p className="text-gray-500 mb-6">Create your first spiritual altar to begin your journey of faith and devotion.</p>
-          <button
-            onClick={() => setView('create')}
-            className="btn-primary px-6 py-3 rounded-lg font-medium"
-          >
-            <i className="fas fa-plus mr-2"></i>
-            Create Your First Altar
-          </button>
+      {loading && (
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {altars.map((altar) => {
-            const config = altarTypes[altar.type as keyof typeof altarTypes]
-            return (
-              <div key={altar.id} className="dashboard-card">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-10 h-10 rounded-full bg-white flex items-center justify-center ${config.color}`}>
-                      <i className={`${config.icon} text-lg`}></i>
+      )}
+
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+          <strong className="font-bold">Error: </strong>
+          <span className="block sm:inline">{error}</span>
+        </div>
+      )}
+
+      {!loading && !error && (
+        <>
+          {altars.length === 0 ? (
+            <div className="text-center py-12">
+              <i className="fas fa-praying-hands text-gray-300 text-6xl mb-4"></i>
+              <h3 className="text-2xl font-semibold text-gray-700 mb-2">No Altars Created Yet</h3>
+              <p className="text-gray-500 mb-6">Create your first spiritual altar to begin your journey of faith and devotion.</p>
+              <button
+                onClick={() => setView('create')}
+                className="btn-primary px-6 py-3 rounded-lg font-medium"
+              >
+                <i className="fas fa-plus mr-2"></i>
+                Create Your First Altar
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {altars.map((altar) => {
+                const config = altarTypes[altar.type as keyof typeof altarTypes]
+                return (
+                  <div key={altar.id} className="dashboard-card">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-10 h-10 rounded-full bg-white flex items-center justify-center ${config.color}`}>
+                          <i className={`${config.icon} text-lg`}></i>
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-800">{altar.name}</h3>
+                          <p className="text-sm text-gray-500">{config.title}</p>
+                        </div>
+                      </div>
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getEntryCountBadgeColor(0)}`}>
+                        0 entries
+                      </span>
                     </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-800">{altar.name}</h3>
-                      <p className="text-sm text-gray-500">{config.title}</p>
+                    
+                    <p className="text-gray-600 text-sm mb-4">{altar.purpose}</p>
+                    
+                    <div className="flex items-center justify-between text-sm text-gray-500">
+                      <span>Created {formatRelativeTime(altar.created_at)}</span>
+                      <button className="text-purple-600 hover:text-purple-700 font-medium">
+                        View Details →
+                      </button>
                     </div>
                   </div>
-                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getEntryCountBadgeColor(altar.entries?.length || 0)}`}>
-                    {altar.entries?.length || 0} entries
-                  </span>
-                </div>
-                
-                <p className="text-gray-600 text-sm mb-4">{altar.purpose}</p>
-                
-                <div className="flex items-center justify-between text-sm text-gray-500">
-                  <span>Created {formatRelativeTime(altar.createdAt)}</span>
-                  <button className="text-purple-600 hover:text-purple-700 font-medium">
-                    View Details →
-                  </button>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+                )
+              })}
+            </div>
+          )}
+        </>
       )}
     </section>
   )
