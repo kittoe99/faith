@@ -1,9 +1,50 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { StudyPlanService } from '../../lib/study-plan-service'
+import { StudyPlan, UserPlanProgress } from '../../types/study-plan.types'
+import { getStudyPlans, createStudyPlan } from '../../lib/study-plan-api'
 
 export default function BibleStudy() {
   const [activeStudyTool, setActiveStudyTool] = useState('reading-plan')
+  const [plans, setPlans] = useState<StudyPlan[]>([])
+  const [selectedPlan, setSelectedPlan] = useState<StudyPlan | null>(null)
+  const [progressMap, setProgressMap] = useState<Record<string, UserPlanProgress>>({})
+  const [loadingPlans, setLoadingPlans] = useState(true)
+  const [errorLoading, setErrorLoading] = useState<string | null>(null)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [newPlanTitle, setNewPlanTitle] = useState('')
+  const [newPlanDescription, setNewPlanDescription] = useState('')
+  const [newPlanJson, setNewPlanJson] = useState('[{"day":1,"topic":"Sample","passages":["Genesis 1"]}]')
+
+  useEffect(() => {
+    async function loadPlans() {
+      try {
+        const dbPlans = await getStudyPlans()
+        setPlans(dbPlans)
+        
+        const map: Record<string, UserPlanProgress> = {}
+        dbPlans.forEach((p) => {
+          map[p.id] = StudyPlanService.getProgress(p.id, p.duration)
+        })
+        setProgressMap(map)
+      } catch (err) {
+        console.error(err)
+        setErrorLoading('Failed to load study plans from database')
+        // Fallback to built-in plans if database fails
+        const builtIns = StudyPlanService.getBuiltInPlans()
+        setPlans(builtIns)
+        const map: Record<string, UserPlanProgress> = {}
+        builtIns.forEach((p) => {
+          map[p.id] = StudyPlanService.getProgress(p.id, p.duration)
+        })
+        setProgressMap(map)
+      } finally {
+        setLoadingPlans(false)
+      }
+    }
+    loadPlans()
+  }, [])
 
   const studyTools = [
     {
@@ -19,112 +60,126 @@ export default function BibleStudy() {
       icon: 'fas fa-sticky-note',
       color: 'green',
       description: 'Take detailed notes on scriptures and insights'
-    },
-    {
-      id: 'revelations',
-      title: 'Revelations',
-      icon: 'fas fa-lightbulb',
-      color: 'yellow',
-      description: 'Record spiritual insights and revelations'
-    },
-    {
-      id: 'bookmarks',
-      title: 'Bookmarks',
-      icon: 'fas fa-bookmark',
-      color: 'purple',
-      description: 'Save and organize your favorite verses'
-    },
-    {
-      id: 'concordance',
-      title: 'Concordance',
-      icon: 'fas fa-search',
-      color: 'indigo',
-      description: 'Search for words and themes across Scripture'
-    },
-    {
-      id: 'commentary',
-      title: 'Commentary',
-      icon: 'fas fa-comments',
-      color: 'red',
-      description: 'Access biblical commentary and explanations'
     }
   ]
+
+  const renderReadingPlans = () => {
+    if (selectedPlan) {
+      const progress = progressMap[selectedPlan.id]
+      const toggleDay = (day: number) => {
+        StudyPlanService.toggleDay(selectedPlan.id, day, selectedPlan.duration)
+        setProgressMap({ 
+          ...progressMap, 
+          [selectedPlan.id]: StudyPlanService.getProgress(selectedPlan.id, selectedPlan.duration) 
+        })
+      }
+
+      return (
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <button 
+            className="text-sm text-amber-600 mb-4" 
+            onClick={() => setSelectedPlan(null)}
+          >
+            <i className="fas fa-chevron-left mr-1" />Back to plans
+          </button>
+          <h3 className="text-2xl font-semibold mb-2">{selectedPlan.title}</h3>
+          <p className="text-gray-600 mb-4">{selectedPlan.description}</p>
+          
+          <div className="w-full bg-gray-100 rounded-full h-3 mb-6">
+            <div 
+              className="bg-amber-500 h-3 rounded-full" 
+              style={{ width: `${Math.round((progress.completedDays.length / selectedPlan.duration) * 100)}%` }} 
+            />
+          </div>
+          
+          <div className="max-h-96 overflow-y-auto space-y-2 mb-6">
+            {selectedPlan.readings.map((r) => {
+              const checked = progress.completedDays.includes(r.day)
+              return (
+                <div key={r.day} className="border border-gray-200 rounded-lg p-3">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleDay(r.day)}
+                    />
+                    <span className="text-sm">
+                      <span className="font-medium">Day {r.day}:</span>{' '}
+                      {r.topic || r.passages.join(', ')}
+                    </span>
+                  </div>
+                  {r.topic && (
+                    <div className="mt-2 pl-8 text-sm">
+                      <p className="font-medium text-amber-700">{r.topic}</p>
+                      <ul className="list-disc list-inside">
+                        {r.passages.map((p) => (
+                          <li key={p}>{p}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="bg-white rounded-xl shadow-lg p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-semibold">Bible Reading Plans</h3>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="px-3 py-1 bg-amber-500 text-white text-sm rounded hover:bg-amber-600"
+          >
+            <i className="fas fa-plus mr-1" />Create custom
+          </button>
+        </div>
+        
+        {loadingPlans && <p className="text-center py-6">Loading plans...</p>}
+        {errorLoading && <p className="text-center text-red-500 py-6">{errorLoading}</p>}
+        
+        {!loadingPlans && !errorLoading && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {plans.map((plan) => {
+              const progress = progressMap[plan.id]
+              const pct = progress ? Math.round((progress.completedDays.length / plan.duration) * 100) : 0
+              const completed = progress?.completed
+              
+              return (
+                <div
+                  key={plan.id}
+                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => setSelectedPlan(plan)}
+                >
+                  <h4 className="font-semibold text-amber-600 mb-2">{plan.title}</h4>
+                  <p className="text-gray-600 text-sm mb-3 line-clamp-3">{plan.description}</p>
+                  <div className="w-full bg-gray-100 rounded-full h-2 mb-2">
+                    <div className="bg-amber-500 h-2 rounded-full" style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="text-xs text-gray-500">
+                    {completed ? 'Completed' : `${pct}% complete`}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   const renderStudyTool = () => {
     switch (activeStudyTool) {
       case 'reading-plan':
-        return (
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h3 className="text-xl font-semibold mb-4">Bible Reading Plans</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                <h4 className="font-semibold text-blue-600 mb-2">One Year Bible</h4>
-                <p className="text-gray-600 text-sm mb-3">Read through the entire Bible in one year with daily readings from Old Testament, New Testament, Psalms, and Proverbs.</p>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-500">365 days</span>
-                  <button className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600">Start</button>
-                </div>
-              </div>
-              <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                <h4 className="font-semibold text-green-600 mb-2">New Testament</h4>
-                <p className="text-gray-600 text-sm mb-3">Focus on the New Testament with a 90-day reading plan covering the life and teachings of Jesus.</p>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-500">90 days</span>
-                  <button className="px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600">Start</button>
-                </div>
-              </div>
-              <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                <h4 className="font-semibold text-purple-600 mb-2">Psalms & Proverbs</h4>
-                <p className="text-gray-600 text-sm mb-3">Daily wisdom from Psalms and Proverbs, perfect for morning or evening devotions.</p>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-500">31 days</span>
-                  <button className="px-3 py-1 bg-purple-500 text-white text-sm rounded hover:bg-purple-600">Start</button>
-                </div>
-              </div>
-              <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                <h4 className="font-semibold text-orange-600 mb-2">Gospels</h4>
-                <p className="text-gray-600 text-sm mb-3">Journey through the four Gospels to understand the life and ministry of Jesus Christ.</p>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-500">60 days</span>
-                  <button className="px-3 py-1 bg-orange-500 text-white text-sm rounded hover:bg-orange-600">Start</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )
+        return renderReadingPlans()
       case 'study-notes':
         return (
           <div className="bg-white rounded-xl shadow-lg p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-semibold">Study Notes</h3>
-              <button className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
-                <i className="fas fa-plus mr-2"></i>New Note
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="border border-gray-200 rounded-lg p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <h4 className="font-semibold text-gray-800">John 3:16 - God's Love</h4>
-                  <span className="text-xs text-gray-500">2 days ago</span>
-                </div>
-                <p className="text-gray-600 text-sm mb-3">This verse encapsulates the entire gospel message. God's love is so great that He gave His only Son...</p>
-                <div className="flex gap-2">
-                  <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">Salvation</span>
-                  <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">Love</span>
-                </div>
-              </div>
-              <div className="border border-gray-200 rounded-lg p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <h4 className="font-semibold text-gray-800">Psalm 23 - The Good Shepherd</h4>
-                  <span className="text-xs text-gray-500">1 week ago</span>
-                </div>
-                <p className="text-gray-600 text-sm mb-3">David's beautiful metaphor of God as our shepherd provides comfort and assurance...</p>
-                <div className="flex gap-2">
-                  <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded">Comfort</span>
-                  <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded">Trust</span>
-                </div>
-              </div>
-            </div>
+            <h3 className="text-xl font-semibold mb-4">Study Notes</h3>
+            <p className="text-gray-500 text-center py-8">Study notes feature coming soon...</p>
           </div>
         )
       default:
@@ -164,8 +219,8 @@ export default function BibleStudy() {
                     onClick={() => setActiveStudyTool(tool.id)}
                     className={`w-full text-left p-3 rounded-lg transition-colors ${
                       activeStudyTool === tool.id
-                        ? `bg-${tool.color}-500 text-white shadow-md`
-                        : `hover:bg-${tool.color}-50 text-gray-700`
+                        ? 'bg-blue-500 text-white shadow-md'
+                        : 'hover:bg-blue-50 text-gray-700'
                     }`}
                   >
                     <div className="flex items-center">
@@ -182,23 +237,76 @@ export default function BibleStudy() {
                   </button>
                 ))}
               </div>
-              
-              {/* Quick Access to Bible */}
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <a 
-                  href="#bible" 
-                  className="flex items-center justify-center w-full p-3 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
-                >
-                  <i className="fas fa-book-bible mr-2"></i>
-                  Read Bible
-                </a>
-              </div>
             </div>
           </div>
 
           {/* Main Content */}
           <div className="lg:col-span-3">
             {renderStudyTool()}
+
+            {/* Create Plan Modal */}
+            {showCreateModal && (
+              <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                <div className="bg-white rounded-lg w-full max-w-lg p-6 shadow-xl">
+                  <h3 className="text-lg font-semibold mb-4">Create Custom Plan</h3>
+                  <div className="space-y-4">
+                    <input
+                      type="text"
+                      className="w-full border px-3 py-2 rounded"
+                      placeholder="Title"
+                      value={newPlanTitle}
+                      onChange={(e) => setNewPlanTitle(e.target.value)}
+                    />
+                    <textarea
+                      className="w-full border px-3 py-2 rounded"
+                      placeholder="Description"
+                      value={newPlanDescription}
+                      onChange={(e) => setNewPlanDescription(e.target.value)}
+                    />
+                    <textarea
+                      className="w-full border px-3 py-2 rounded font-mono text-xs h-40"
+                      placeholder="Readings JSON (array of day objects)"
+                      value={newPlanJson}
+                      onChange={(e) => setNewPlanJson(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button
+                      className="px-4 py-2 bg-gray-200 rounded"
+                      onClick={() => setShowCreateModal(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="px-4 py-2 bg-amber-500 text-white rounded"
+                      onClick={async () => {
+                        try {
+                          const readings = JSON.parse(newPlanJson)
+                          const plan: Omit<StudyPlan, 'id'> = {
+                            title: newPlanTitle,
+                            description: newPlanDescription,
+                            duration: readings.length,
+                            readings,
+                          }
+                          const id = await createStudyPlan(plan)
+                          if (id) {
+                            setPlans([...plans, { id, ...plan } as StudyPlan])
+                            setShowCreateModal(false)
+                            setNewPlanTitle('')
+                            setNewPlanDescription('')
+                            setNewPlanJson('[{"day":1,"topic":"Sample","passages":["Genesis 1"]}]')
+                          }
+                        } catch (err: any) {
+                          alert('Invalid JSON or error saving plan')
+                        }
+                      }}
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
