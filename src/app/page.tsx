@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Navigation from '@/components/Navigation'
 import Dashboard from '@/components/Dashboard'
 import AltarPractice from '@/components/AltarPractice'
+import Bible from '@/components/Bible'
 import BibleStudy from '@/components/BibleStudy'
 import Tasks from '@/components/Tasks'
 import Journal from '@/components/Journal'
@@ -32,6 +33,7 @@ export default function Home() {
     const titles: { [key: string]: string } = {
       home: 'Dashboard',
       altar: 'Altar Practice',
+      bible: 'Holy Bible',
       'bible-study': 'Bible Study',
       tasks: 'Spiritual Goals',
       journal: 'Journal',
@@ -44,6 +46,8 @@ export default function Home() {
     switch (activeSection) {
       case 'altar':
         return <AltarPractice />
+      case 'bible':
+        return <Bible />
       case 'bible-study':
         return <BibleStudy />
       case 'tasks':

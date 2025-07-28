@@ -12,7 +12,8 @@ export default function Navigation({ activeSection }: NavigationProps) {
   const menuItems = [
     { id: 'home', label: 'Dashboard', icon: 'fas fa-tachometer-alt' },
     { id: 'altar', label: 'Altar Practice', icon: 'fas fa-praying-hands' },
-    { id: 'bible-study', label: 'Bible Study', icon: 'fas fa-book-bible' },
+    { id: 'bible', label: 'Bible', icon: 'fas fa-book-bible' },
+    { id: 'bible-study', label: 'Bible Study', icon: 'fas fa-graduation-cap' },
     { id: 'tasks', label: 'Spiritual Goals', icon: 'fas fa-bullseye' },
     { id: 'journal', label: 'Journal', icon: 'fas fa-feather-alt' },
     { id: 'resources', label: 'Resources', icon: 'fas fa-toolbox' },
