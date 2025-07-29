@@ -61,35 +61,28 @@ export default function Navigation({ activeSection }: NavigationProps) {
   return (
     <>
       {/* Mobile Menu Toggle Button */}
+      {/* Screen dimmer */}
       {isMenuOpen && (
-        <>
-          <button
-            className="mobile-menu-toggle active"
-            onClick={toggleMenu}
-            aria-label="Close navigation menu"
-          >
-            <i className="fas fa-times"></i>
-          </button>
-          {/* Screen dimmer */}
-          <div
-            onClick={toggleMenu}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[999] md:hidden"
-            aria-hidden="true"
-          />
-        </>
+        <div
+          onClick={toggleMenu}
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[999] md:hidden"
+          aria-hidden="true"
+        />
       )}
-      <button 
-        id="mobile-menu-toggle"
-        className={`mobile-menu-toggle ${isMenuOpen ? 'active' : ''}`}
-        onClick={toggleMenu}
-      >
-        <i className={`fas ${isMenuOpen ? 'fa-times' : 'fa-plus'}`} id="menu-icon"></i>
-      </button>
-
+      {!isMenuOpen && (
+        <button 
+          id="mobile-menu-toggle"
+          style={{ top: '50%' }}
+          className="fixed left-2 w-6 h-6 translate-y-1/2 z-[1000] p-0 text-blue-600 bg-transparent opacity-80 hover:opacity-100 transition md:hidden"
+          onClick={toggleMenu}
+        >
+          <i className="fas fa-plus text-[20px]" id="menu-icon"></i>
+        </button>
+      )}
       {/* Navigation Menu */}
       <nav 
         id="nav-menu"
-        className={`nav-menu ${isMenuOpen ? 'active' : ''}`}
+        className={`nav-menu z-[1002] ${isMenuOpen ? 'active' : ''}`}
       >
         <h2 className="text-2xl mb-6 px-4">My Walk</h2>
         <ul className="space-y-2">
