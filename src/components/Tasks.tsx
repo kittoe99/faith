@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { TasksService } from '../../lib/tasks-service'
+import { Task, CreateTaskInput } from '../../types/task.types'
 
-interface SpiritualTask {
+interface SpiritualTask extends Task {
   id: string
   title: string
   description: string
@@ -23,19 +25,23 @@ export default function Tasks() {
   })
 
   useEffect(() => {
-    // Load tasks from localStorage
-    const savedTasks = localStorage.getItem('spiritualTasks')
-    if (savedTasks) {
-      setTasks(JSON.parse(savedTasks))
-    }
+    // Load tasks from Supabase
+    (async () => {
+      try {
+        const list = await TasksService.list()
+        setTasks(list)
+      } catch (err) {
+        console.error('Failed to load tasks', err)
+        alert('Failed to load tasks')
+      }
+    })()
   }, [])
 
-  const saveTasks = (updatedTasks: SpiritualTask[]) => {
-    setTasks(updatedTasks)
-    localStorage.setItem('spiritualTasks', JSON.stringify(updatedTasks))
+  const setTasksState = (updated: SpiritualTask[]) => {
+    setTasks(updated)
   }
 
-  const addTask = () => {
+  const addTask = async () => {
     if (!newTask.title.trim()) return
 
     const task: SpiritualTask = {
@@ -48,21 +54,43 @@ export default function Tasks() {
       createdAt: new Date().toISOString()
     }
 
-    saveTasks([...tasks, task])
+    try {
+      const saved = await TasksService.create({
+        title: newTask.title,
+        description: newTask.description,
+        due_date: newTask.dueDate || undefined,
+        priority: newTask.priority,
+      })
+      setTasksState([saved, ...tasks])
+    } catch (err) {
+      console.error('Failed to create task', err)
+      alert('Failed to create task')
+      return
+    }
     setNewTask({ title: '', description: '', dueDate: '', priority: 'medium' })
     setShowAddForm(false)
   }
 
-  const toggleTask = (taskId: string) => {
-    const updatedTasks = tasks.map(task =>
-      task.id === taskId ? { ...task, completed: !task.completed } : task
-    )
-    saveTasks(updatedTasks)
+  const toggleTask = async (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId)
+    if (!task) return
+    try {
+      const updated = await TasksService.update(taskId, { completed: !task.completed })
+      setTasksState(tasks.map(t => (t.id === taskId ? updated : t)))
+    } catch (err) {
+      console.error('Failed to update task', err)
+      alert('Failed to update task')
+    }
   }
 
-  const deleteTask = (taskId: string) => {
-    const updatedTasks = tasks.filter(task => task.id !== taskId)
-    saveTasks(updatedTasks)
+  const deleteTask = async (taskId: string) => {
+    try {
+      await TasksService.delete(taskId)
+      setTasksState(tasks.filter(t => t.id !== taskId))
+    } catch (err) {
+      console.error('Failed to delete task', err)
+      alert('Failed to delete task')
+    }
   }
 
   const getPriorityColor = (priority: string) => {

@@ -14,7 +14,7 @@ export default function Navigation({ activeSection }: NavigationProps) {
     { id: 'altar', label: 'Altar Practice', icon: 'fas fa-praying-hands' },
     { id: 'bible', label: 'Bible', icon: 'fas fa-book-bible' },
     { id: 'bible-study', label: 'Bible Study', icon: 'fas fa-graduation-cap' },
-    { id: 'tasks', label: 'Spiritual Goals', icon: 'fas fa-bullseye' },
+    { id: 'tasks', label: 'Tasks', icon: 'fas fa-tasks' },
     { id: 'journal', label: 'Journal', icon: 'fas fa-feather-alt' },
     { id: 'resources', label: 'Resources', icon: 'fas fa-toolbox' },
   ]

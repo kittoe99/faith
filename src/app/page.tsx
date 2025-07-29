@@ -9,6 +9,7 @@ import BibleStudy from '@/components/BibleStudy'
 import Tasks from '@/components/Tasks'
 import Journal from '@/components/Journal'
 import Resources from '@/components/Resources'
+import { AuthGuard } from '@/components/AuthGuard'
 
 export default function Home() {
   const [activeSection, setActiveSection] = useState('home')
@@ -35,7 +36,7 @@ export default function Home() {
       altar: 'Altar Practice',
       bible: 'Holy Bible',
       'bible-study': 'Bible Study',
-      tasks: 'Spiritual Goals',
+    tasks: 'Tasks',
       journal: 'Journal',
       resources: 'Resources'
     }
@@ -62,19 +63,21 @@ export default function Home() {
   }
 
   return (
-    <div className="max-w-screen-xl mx-auto main-grid">
-      <Navigation activeSection={activeSection} />
-      
-      <main>
-        <header className="mb-8">
-          <h1 id="page-title" className="text-3xl font-bold mb-2">{pageTitle}</h1>
-          <p className="text-lg text-gray-600">A record of faith, growth, and grace.</p>
-        </header>
+    <AuthGuard requireAuth={true}>
+      <div className="max-w-screen-xl mx-auto main-grid">
+        <Navigation activeSection={activeSection} />
+        
+        <main>
+          <header className="mb-8">
+            <h1 id="page-title" className="text-3xl font-bold mb-2">{pageTitle}</h1>
+            <p className="text-lg text-gray-600">A record of faith, growth, and grace.</p>
+          </header>
 
-        <div id="content-container">
-          {renderActiveSection()}
-        </div>
-      </main>
-    </div>
+          <div id="content-container">
+            {renderActiveSection()}
+          </div>
+        </main>
+      </div>
+    </AuthGuard>
   )
 }

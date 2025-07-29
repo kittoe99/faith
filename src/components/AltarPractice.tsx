@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { AltarPracticeService } from '../../lib/altar-practice-service'
+import { AltarSessionService } from '../../lib/altar-session-service'
 import { AltarPractice as AltarPracticeType, AltarFormData } from '../../types/altar.types'
+import AltarDetail from './AltarDetail'
 
 
 
@@ -20,7 +22,14 @@ export default function AltarPractice() {
   })
   const [customItemInput, setCustomItemInput] = useState('')
   const [view, setView] = useState('list') // 'list', 'create', 'detail'
+  const [detailAltar, setDetailAltar] = useState<AltarPracticeType | null>(null)
+  
+  // Debug: Log detailAltar state changes
+  useEffect(() => {
+    console.log('detailAltar state changed:', detailAltar)
+  }, [detailAltar])
   const [altars, setAltars] = useState<AltarPracticeType[]>([])
+  const [sessionCounts, setSessionCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -51,22 +60,30 @@ export default function AltarPractice() {
     'Dedicating talents/skills', 'Sacrificing personal desires', 'Giving up social activities'
   ]
 
-  useEffect(() => {
-    const fetchAltars = async () => {
-      try {
-        setLoading(true)
-        const data = await AltarPracticeService.getAltarPractices()
-        setAltars(data)
-      } catch (err) {
-        console.error('Error fetching altar practices:', err)
-        setError('Failed to load altar practices')
-      } finally {
-        setLoading(false)
-      }
+  const reloadAltars = async () => {
+    try {
+      setLoading(true)
+      const data = await AltarPracticeService.getAltarPractices()
+      setAltars(data)
+      const counts: Record<string, number> = {}
+      await Promise.all(
+        data.map(async (a) => {
+          const sessions = await AltarSessionService.list(a.id)
+          counts[a.id] = sessions.length
+        })
+      )
+      setSessionCounts(counts)
+    } catch (err) {
+      console.error('Error fetching altar practices:', err)
+      setError('Failed to load altar practices')
+    } finally {
+      setLoading(false)
     }
+  }
 
-    fetchAltars()
-  }, [])
+  useEffect(() => {
+    reloadAltars();
+  }, []);
 
   const updateProgressIndicators = (step: number) => {
     return { width: `${step * 25}%` }
@@ -199,50 +216,65 @@ export default function AltarPractice() {
     return 'bg-purple-100 text-purple-600'
   }
 
+  if (view === 'detail' && detailAltar) {
+    return (
+      <AltarDetail
+        altar={detailAltar}
+        onClose={() => {
+          console.log('Closing detail view, returning to list');
+          setDetailAltar(null);
+          setView('list');
+          reloadAltars();
+        }}
+      />
+    )
+  }
+
   if (view === 'create') {
     return (
-      <section className="content-section active">
-        <div className="form-container w-full max-w-3xl mx-auto">
-          {showSuccess ? (
-            <div className="p-8 text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full mx-auto flex items-center justify-center mb-4">
-                <i className="fas fa-check text-green-600 text-2xl"></i>
+      <>
+        <section className="content-section active">
+          <div className="form-container w-full max-w-3xl mx-auto">
+            {showSuccess ? (
+              <div className="p-8 text-center">
+                <div className="w-16 h-16 bg-green-100 rounded-full mx-auto flex items-center justify-center mb-4">
+                  <i className="fas fa-check text-green-600 text-2xl"></i>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-800 mb-2">Altar Created Successfully!</h3>
+                <p className="text-gray-600">Your spiritual altar has been set up. May it be a place of encounter with the Divine.</p>
               </div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-2">Altar Created Successfully!</h3>
-              <p className="text-gray-600">Your spiritual altar has been set up. May it be a place of encounter with the Divine.</p>
-            </div>
-          ) : (
-            <>
-              <div className="form-header p-6 text-white">
-                <h2 className="text-2xl font-bold text-center">Create Your Sacred Altar</h2>
-                <p className="text-center mt-2 opacity-90">Set up a dedicated space for your spiritual practices</p>
-                
-                {/* Progress Indicators */}
-                <div className="flex justify-between items-center mt-6 mb-4">
-                  {[1, 2, 3, 4].map((step) => (
-                    <div key={step} className={`flex flex-col items-center ${currentStep >= step ? '' : 'opacity-50'}`}>
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                        currentStep >= step ? 'bg-white text-purple-600' : 'bg-purple-400 text-white'
-                      }`}>
-                        {step}
+            ) : (
+              <>
+                <div className="form-header p-6 text-white">
+                  <h2 className="text-2xl font-bold text-center">Create Your Sacred Altar</h2>
+                  <p className="text-center mt-2 opacity-90">Set up a dedicated space for your spiritual practices</p>
+                  
+                  {/* Progress Indicators */}
+                  <div className="flex justify-between items-center mt-6 mb-4">
+                    {[1, 2, 3, 4].map((step) => (
+                      <div key={step} className={`flex flex-col items-center ${currentStep >= step ? '' : 'opacity-50'}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                          currentStep >= step ? 'bg-white text-purple-600' : 'bg-purple-400 text-white'
+                        }`}>
+                          {step}
+                        </div>
+                        <span className="text-xs mt-1">
+                          {step === 1 ? 'Info' : step === 2 ? 'Practices' : step === 3 ? 'Sacrifices' : 'Custom'}
+                        </span>
                       </div>
-                      <span className="text-xs mt-1">
-                        {step === 1 ? 'Info' : step === 2 ? 'Practices' : step === 3 ? 'Sacrifices' : 'Custom'}
-                      </span>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div className="w-full bg-purple-400 rounded-full h-2">
+                    <div 
+                      className="bg-white h-2 rounded-full transition-all duration-300"
+                      style={updateProgressIndicators(currentStep)}
+                    ></div>
+                  </div>
                 </div>
-                
-                {/* Progress Bar */}
-                <div className="w-full bg-purple-400 rounded-full h-2">
-                  <div 
-                    className="bg-white h-2 rounded-full transition-all duration-300"
-                    style={updateProgressIndicators(currentStep)}
-                  ></div>
-                </div>
-              </div>
 
-              <form className="p-6">
+                <form className="p-6">
                 {/* Step 1: Basic Information */}
                 {currentStep === 1 && (
                   <div className="space-y-6">
@@ -455,91 +487,103 @@ export default function AltarPractice() {
                     </div>
                   </div>
                 )}
-              </form>
-            </>
-          )}
-        </div>
-      </section>
+                </form>
+              </>
+            )}
+          </div>
+        </section>
+
+      </>
     )
   }
 
   // Default list view
   return (
-    <section className="content-section active">
-      <div className="mb-6">
-        <button
-          onClick={() => setView('create')}
-          className="btn-primary px-6 py-3 rounded-lg font-medium"
-        >
-          <i className="fas fa-plus mr-2"></i>
-          Create New Altar
-        </button>
-      </div>
-
-      {loading && (
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+    <>
+      <section className="content-section active">
+        <div className="mb-6">
+          <button
+            onClick={() => setView('create')}
+            className="btn-primary px-6 py-3 rounded-lg font-medium"
+          >
+            <i className="fas fa-plus mr-2"></i>
+            Create New Altar
+          </button>
         </div>
-      )}
 
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-          <strong className="font-bold">Error: </strong>
-          <span className="block sm:inline">{error}</span>
-        </div>
-      )}
+        {loading && (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+          </div>
+        )}
 
-      {!loading && !error && (
-        <>
-          {altars.length === 0 ? (
-            <div className="text-center py-12">
-              <i className="fas fa-praying-hands text-gray-300 text-6xl mb-4"></i>
-              <h3 className="text-2xl font-semibold text-gray-700 mb-2">No Altars Created Yet</h3>
-              <p className="text-gray-500 mb-6">Create your first spiritual altar to begin your journey of faith and devotion.</p>
-              <button
-                onClick={() => setView('create')}
-                className="btn-primary px-6 py-3 rounded-lg font-medium"
-              >
-                <i className="fas fa-plus mr-2"></i>
-                Create Your First Altar
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {altars.map((altar) => {
-                const config = altarTypes[altar.type as keyof typeof altarTypes]
-                return (
-                  <div key={altar.id} className="dashboard-card">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-10 h-10 rounded-full bg-white flex items-center justify-center ${config.color}`}>
-                          <i className={`${config.icon} text-lg`}></i>
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+            <strong className="font-bold">Error: </strong>
+            <span className="block sm:inline">{error}</span>
+          </div>
+        )}
+
+        {!loading && !error && (
+          <>
+            {altars.length === 0 ? (
+              <div className="text-center py-12">
+                <i className="fas fa-praying-hands text-gray-300 text-6xl mb-4"></i>
+                <h3 className="text-2xl font-semibold text-gray-700 mb-2">No Altars Created Yet</h3>
+                <p className="text-gray-500 mb-6">Create your first spiritual altar to begin your journey of faith and devotion.</p>
+                <button
+                  onClick={() => setView('create')}
+                  className="btn-primary px-6 py-3 rounded-lg font-medium"
+                >
+                  <i className="fas fa-plus mr-2"></i>
+                  Create Your First Altar
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {altars.map((altar) => {
+                  const config = altarTypes[altar.type as keyof typeof altarTypes]
+                  return (
+                    <div key={altar.id} className="dashboard-card">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-10 h-10 rounded-full bg-white flex items-center justify-center ${config.color}`}>
+                            <i className={`${config.icon} text-lg`}></i>
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-800">{altar.name}</h3>
+                            <p className="text-sm text-gray-500">{config.title}</p>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-800">{altar.name}</h3>
-                          <p className="text-sm text-gray-500">{config.title}</p>
-                        </div>
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getEntryCountBadgeColor(sessionCounts[altar.id] || 0)}`}> 
+                          {(sessionCounts[altar.id] || 0)} entries
+                        </span>
                       </div>
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getEntryCountBadgeColor(0)}`}>
-                        0 entries
-                      </span>
+                      
+                      <p className="text-gray-600 text-sm mb-4">{altar.purpose}</p>
+                      
+                      <div className="flex items-center justify-between text-sm text-gray-500">
+                        <span>Created {formatRelativeTime(altar.created_at)}</span>
+                        <button 
+                          className="text-purple-600 hover:text-purple-700 font-medium" 
+                          onClick={() => {
+                            console.log('Button clicked, setting detailAltar:', altar);
+                            setDetailAltar(altar);
+                            setView('detail');
+                          }}
+                        >
+                          View Details →
+                        </button>
+                      </div>
                     </div>
-                    
-                    <p className="text-gray-600 text-sm mb-4">{altar.purpose}</p>
-                    
-                    <div className="flex items-center justify-between text-sm text-gray-500">
-                      <span>Created {formatRelativeTime(altar.created_at)}</span>
-                      <button className="text-purple-600 hover:text-purple-700 font-medium">
-                        View Details →
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </>
-      )}
-    </section>
+                  )
+                })}
+              </div>
+            )}
+          </>
+        )}
+      </section>
+
+    </>
   )
 }

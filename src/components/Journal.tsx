@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { JournalService } from '../../lib/journal-service'
+import { JournalEntry as DBJournalEntry } from '../../types/journal.types'
 
-interface JournalEntry {
-  id: string
+type JournalEntry = DBJournalEntry
+
+type NewEntry = {
   title: string
   content: string
-  date: string
   mood: string
   tags: string[]
 }
@@ -14,7 +16,8 @@ interface JournalEntry {
 export default function Journal() {
   const [entries, setEntries] = useState<JournalEntry[]>([])
   const [showEditor, setShowEditor] = useState(false)
-  const [currentEntry, setCurrentEntry] = useState({
+  const [currentEntry, setCurrentEntry] = useState<NewEntry>({
+
     title: '',
     content: '',
     mood: 'peaceful',
@@ -22,38 +25,50 @@ export default function Journal() {
   })
 
   useEffect(() => {
-    // Load journal entries from localStorage
-    const savedEntries = localStorage.getItem('journalEntries')
-    if (savedEntries) {
-      setEntries(JSON.parse(savedEntries))
-    }
+    // Load journal entries from Supabase
+    (async () => {
+      try {
+        const list = await JournalService.list()
+        setEntries(list)
+      } catch (err) {
+        console.error('Failed to load entries', err)
+        alert('Failed to load journal entries')
+      }
+    })()
   }, [])
 
-  const saveEntries = (updatedEntries: JournalEntry[]) => {
-    setEntries(updatedEntries)
-    localStorage.setItem('journalEntries', JSON.stringify(updatedEntries))
+  const setEntriesState = (updated: JournalEntry[]) => {
+    setEntries(updated)
   }
 
-  const saveEntry = () => {
+  const saveEntry = async () => {
     if (!currentEntry.title.trim() || !currentEntry.content.trim()) return
 
-    const entry: JournalEntry = {
-      id: Date.now().toString(),
-      title: currentEntry.title,
-      content: currentEntry.content,
-      date: new Date().toISOString(),
-      mood: currentEntry.mood,
-      tags: currentEntry.tags
+    try {
+      const saved = await JournalService.create({
+        title: currentEntry.title,
+        content: currentEntry.content,
+        mood: currentEntry.mood,
+        tags: currentEntry.tags,
+      })
+      setEntriesState([saved, ...entries])
+    } catch (err) {
+      console.error('Failed to save entry', err)
+      alert('Failed to save entry')
+      return
     }
-
-    saveEntries([entry, ...entries])
     setCurrentEntry({ title: '', content: '', mood: 'peaceful', tags: [] })
     setShowEditor(false)
   }
 
-  const deleteEntry = (entryId: string) => {
-    const updatedEntries = entries.filter(entry => entry.id !== entryId)
-    saveEntries(updatedEntries)
+  const deleteEntry = async (entryId: string) => {
+    try {
+      await JournalService.delete(entryId)
+      setEntriesState(entries.filter((ent: JournalEntry) => ent.id !== entryId))
+    } catch (err) {
+      console.error('Failed to delete entry', err)
+      alert('Failed to delete entry')
+    }
   }
 
   const formatDate = (dateString: string) => {
@@ -185,7 +200,7 @@ export default function Journal() {
                       </div>
                       <div>
                         <h3 className="text-lg font-semibold text-gray-800">{entry.title}</h3>
-                        <p className="text-sm text-gray-500">{formatDate(entry.date)}</p>
+                        <p className="text-sm text-gray-500">{formatDate(entry.entry_date)}</p>
                       </div>
                     </div>
                     

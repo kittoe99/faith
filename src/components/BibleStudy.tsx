@@ -2,12 +2,17 @@
 
 import { useState, useEffect } from 'react'
 import { StudyPlanService } from '../../lib/study-plan-service'
+import { StudyPlanProgressService } from '../../lib/study-plan-progress-service'
+import StudyNotes from './StudyNotes'
+import { fetchPassage } from '../../lib/bible-api'
 import { StudyPlan, UserPlanProgress } from '../../types/study-plan.types'
 import { getStudyPlans, createStudyPlan } from '../../lib/study-plan-api'
 
 export default function BibleStudy() {
   const [activeStudyTool, setActiveStudyTool] = useState('reading-plan')
   const [plans, setPlans] = useState<StudyPlan[]>([])
+  const [verseCache, setVerseCache] = useState<Record<string, string>>( {})  // key: reference, value: text
+  const [expanded, setExpanded] = useState<Record<number, boolean>>({})
   const [selectedPlan, setSelectedPlan] = useState<StudyPlan | null>(null)
   const [progressMap, setProgressMap] = useState<Record<string, UserPlanProgress>>({})
   const [loadingPlans, setLoadingPlans] = useState(true)
@@ -23,22 +28,20 @@ export default function BibleStudy() {
         const dbPlans = await getStudyPlans()
         setPlans(dbPlans)
         
-        const map: Record<string, UserPlanProgress> = {}
-        dbPlans.forEach((p) => {
-          map[p.id] = StudyPlanService.getProgress(p.id, p.duration)
-        })
-        setProgressMap(map)
+        const entries = await Promise.all(
+          dbPlans.map(async (p) => [p.id, await StudyPlanProgressService.getProgress(p.id, p.duration)] as const)
+        )
+        setProgressMap(Object.fromEntries(entries))
       } catch (err) {
         console.error(err)
         setErrorLoading('Failed to load study plans from database')
         // Fallback to built-in plans if database fails
         const builtIns = StudyPlanService.getBuiltInPlans()
         setPlans(builtIns)
-        const map: Record<string, UserPlanProgress> = {}
-        builtIns.forEach((p) => {
-          map[p.id] = StudyPlanService.getProgress(p.id, p.duration)
-        })
-        setProgressMap(map)
+        const entries = await Promise.all(
+          builtIns.map(async (p) => [p.id, await StudyPlanProgressService.getProgress(p.id, p.duration)] as const)
+        )
+        setProgressMap(Object.fromEntries(entries))
       } finally {
         setLoadingPlans(false)
       }
@@ -66,12 +69,10 @@ export default function BibleStudy() {
   const renderReadingPlans = () => {
     if (selectedPlan) {
       const progress = progressMap[selectedPlan.id]
-      const toggleDay = (day: number) => {
-        StudyPlanService.toggleDay(selectedPlan.id, day, selectedPlan.duration)
-        setProgressMap({ 
-          ...progressMap, 
-          [selectedPlan.id]: StudyPlanService.getProgress(selectedPlan.id, selectedPlan.duration) 
-        })
+      const toggleDay = async (day: number) => {
+        await StudyPlanProgressService.toggleDay(selectedPlan.id, day, selectedPlan.duration)
+        const updated = await StudyPlanProgressService.getProgress(selectedPlan.id, selectedPlan.duration)
+        setProgressMap({ ...progressMap, [selectedPlan.id]: updated })
       }
 
       return (
@@ -94,28 +95,57 @@ export default function BibleStudy() {
           
           <div className="max-h-96 overflow-y-auto space-y-2 mb-6">
             {selectedPlan.readings.map((r) => {
+              const isOpen = expanded[r.day]
+              const passagesText = async (ref: string) => {
+                if (verseCache[ref]) return verseCache[ref]
+                try {
+                  const verses = await fetchPassage(ref)
+                  const text = verses.map(v=>v.text).join(' ')
+                  setVerseCache(prev=>({ ...prev, [ref]: text }))
+                  return text
+                } catch { return 'Error fetching scripture' }
+              }
               const checked = progress.completedDays.includes(r.day)
               return (
                 <div key={r.day} className="border border-gray-200 rounded-lg p-3">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggleDay(r.day)}
-                    />
-                    <span className="text-sm">
-                      <span className="font-medium">Day {r.day}:</span>{' '}
-                      {r.topic || r.passages.join(', ')}
-                    </span>
+                  <div className="flex items-center justify-between" onClick={async () => {
+                    setExpanded(prev => ({ ...prev, [r.day]: !isOpen }))
+                    if (!isOpen) {
+                      // prefetch passages not cached
+                      for (const ref of r.passages) {
+                        if (!verseCache[ref]) {
+                          try {
+                            const verses = await fetchPassage(ref)
+                            const text = verses.map(v=>v.text).join(' ')
+                            setVerseCache(prev=>({ ...prev, [ref]: text }))
+                          } catch {}
+                        }
+                      }
+                    }
+                  }}>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleDay(r.day)}
+                        onClick={e => e.stopPropagation()}
+                      />
+                      <span className="text-sm font-medium">Day {r.day}</span>
+                    </div>
+                    <i className={`fas fa-chevron-${isOpen ? 'up' : 'down'} text-gray-500`} />
                   </div>
-                  {r.topic && (
-                    <div className="mt-2 pl-8 text-sm">
-                      <p className="font-medium text-amber-700">{r.topic}</p>
-                      <ul className="list-disc list-inside">
-                        {r.passages.map((p) => (
-                          <li key={p}>{p}</li>
-                        ))}
-                      </ul>
+                  {isOpen && (
+                    <div className="mt-3 space-y-4 text-sm text-gray-700">
+                      {r.passages.map((ref) => (
+                        <div key={ref}>
+                          <p className="font-semibold text-amber-600 mb-1">{ref}</p>
+                          {verseCache[ref] ? (
+                            <p className="whitespace-pre-wrap">{verseCache[ref]}</p>
+                          ) : (
+                            <p className="italic text-gray-400">Loading...</p>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -162,6 +192,12 @@ export default function BibleStudy() {
                   <span className="text-xs text-gray-500">
                     {completed ? 'Completed' : `${pct}% complete`}
                   </span>
+                  <button
+                    onClick={() => setSelectedPlan(plan)}
+                    className={`mt-2 w-full px-3 py-2 rounded text-sm font-medium transition-colors ${completed || progress.completedDays.length > 0 ? 'bg-gray-200 text-gray-600 hover:bg-gray-300' : 'bg-amber-500 text-white hover:bg-amber-600'}`}
+                  >
+                    {completed || progress.completedDays.length > 0 ? 'Continue Plan' : 'Start Plan'}
+                  </button>
                 </div>
               )
             })}
@@ -176,12 +212,7 @@ export default function BibleStudy() {
       case 'reading-plan':
         return renderReadingPlans()
       case 'study-notes':
-        return (
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h3 className="text-xl font-semibold mb-4">Study Notes</h3>
-            <p className="text-gray-500 text-center py-8">Study notes feature coming soon...</p>
-          </div>
-        )
+        return <StudyNotes />
       default:
         return (
           <div className="bg-white rounded-xl shadow-lg p-12 text-center">

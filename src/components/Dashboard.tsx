@@ -1,39 +1,33 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { TasksService } from '../../lib/tasks-service'
+import { JournalService } from '../../lib/journal-service'
+import { AltarSessionService } from '../../lib/altar-session-service'
 
 export default function Dashboard() {
-  const [altarLogs, setAltarLogs] = useState<any[]>([])
+    const [altarLogs, setAltarLogs] = useState<any[]>([])
   const [upcomingTasks, setUpcomingTasks] = useState<any[]>([])
+  const [journalCount, setJournalCount] = useState(0)
 
   useEffect(() => {
-    // Load data from localStorage (migrated from original JS)
-    const loadDashboardData = () => {
+        const loadDashboardData = async () => {
       try {
-        const altars = JSON.parse(localStorage.getItem('altars') || '[]')
-        const tasks = JSON.parse(localStorage.getItem('spiritualTasks') || '[]')
-        
-        // Get recent altar logs
-        const recentLogs = altars
-          .flatMap((altar: any) => 
-            (altar.entries || []).map((entry: any) => ({
-              ...entry,
-              altarName: altar.name,
-              altarType: altar.type
-            }))
-          )
-          .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
-          .slice(0, 5)
-        
-        setAltarLogs(recentLogs)
-        
-        // Get upcoming tasks
+        // fetch altar sessions
+        const sessions = await AltarSessionService.listRecent(5)
+        setAltarLogs(sessions)
+
+        // fetch tasks
+        const tasks = await TasksService.list()
         const upcoming = tasks
-          .filter((task: any) => !task.completed)
-          .sort((a: any, b: any) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-          .slice(0, 5)
-        
+          .filter((t:any)=> !t.completed && t.due_date)
+          .sort((a:any,b:any)=> new Date(a.due_date).getTime()-new Date(b.due_date).getTime())
+          .slice(0,5)
         setUpcomingTasks(upcoming)
+
+        // journal count
+        const journals = await JournalService.list()
+        setJournalCount(journals.length)
       } catch (error) {
         console.error('Error loading dashboard data:', error)
       }
@@ -119,12 +113,12 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Upcoming Spiritual Goals */}
+        {/* Upcoming Tasks */}
         <div className="dashboard-card">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-semibold text-gray-800">
               <i className="fas fa-bullseye text-green-500 mr-2"></i>
-              Upcoming Goals
+              Upcoming Tasks
             </h3>
             <a href="#tasks" className="text-primary hover:text-purple-700 font-medium">
               View All →
@@ -157,9 +151,9 @@ export default function Dashboard() {
           ) : (
             <div className="text-center py-8">
               <i className="fas fa-bullseye text-gray-300 text-4xl mb-3"></i>
-              <p className="text-gray-500">No spiritual goals set yet.</p>
+              <p className="text-gray-500">No tasks set yet.</p>
               <a href="#tasks" className="inline-block mt-3 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
-                Set Your First Goal
+                Add Your First Task
               </a>
             </div>
           )}
@@ -182,12 +176,11 @@ export default function Dashboard() {
               <div className="text-sm text-green-700">Active Goals</div>
             </div>
             <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg">
-              <div className="text-2xl font-bold text-purple-600">0</div>
-              <div className="text-sm text-purple-700">Study Sessions</div>
+              <div className="text-2xl font-bold text-purple-600">{journalCount}</div>
+              <div className="text-sm text-purple-700">Journal Entries</div>
             </div>
             <div className="text-center p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg">
-              <div className="text-2xl font-bold text-orange-600">0</div>
-              <div className="text-sm text-orange-700">Journal Entries</div>
+              
             </div>
           </div>
         </div>
