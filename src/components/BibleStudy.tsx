@@ -21,6 +21,7 @@ export default function BibleStudy() {
   const [newPlanTitle, setNewPlanTitle] = useState('')
   const [newPlanDescription, setNewPlanDescription] = useState('')
   const [newPlanJson, setNewPlanJson] = useState('[{"day":1,"topic":"Sample","passages":["Genesis 1"]}]')
+  const [readingModal, setReadingModal] = useState<{ day: number; reading: any } | null>(null)
 
   useEffect(() => {
     async function loadPlans() {
@@ -108,21 +109,39 @@ export default function BibleStudy() {
               const checked = progress.completedDays.includes(r.day)
               return (
                 <div key={r.day} className="border border-gray-200 rounded-lg p-3">
-                  <div className="flex items-center justify-between" onClick={async () => {
-                    setExpanded(prev => ({ ...prev, [r.day]: !isOpen }))
-                    if (!isOpen) {
-                      // prefetch passages not cached
-                      for (const ref of r.passages) {
-                        if (!verseCache[ref]) {
-                          try {
-                            const verses = await fetchPassage(ref)
-                            const text = verses.map(v=>v.text).join(' ')
-                            setVerseCache(prev=>({ ...prev, [ref]: text }))
-                          } catch {}
+                  <div
+                    className="flex items-center justify-between"
+                    onClick={async () => {
+                      if (typeof window !== 'undefined' && window.innerWidth < 640) {
+                        // On mobile, open modal for better readability
+                        setReadingModal({ day: r.day, reading: r })
+                        for (const ref of r.passages) {
+                          if (!verseCache[ref]) {
+                            try {
+                              const verses = await fetchPassage(ref)
+                              const text = verses.map(v => `${v.reference} ${v.text}`).join('\n')
+                              setVerseCache(prev => ({ ...prev, [ref]: text }))
+                            } catch {}
+                          }
+                        }
+                        return
+                      }
+
+                      // On larger screens, toggle inline expansion
+                      setExpanded(prev => ({ ...prev, [r.day]: !isOpen }))
+                      if (!isOpen) {
+                        for (const ref of r.passages) {
+                          if (!verseCache[ref]) {
+                            try {
+                              const verses = await fetchPassage(ref)
+                              const text = verses.map(v => `${v.reference} ${v.text}`).join('\n')
+                              setVerseCache(prev => ({ ...prev, [ref]: text }))
+                            } catch {}
+                          }
                         }
                       }
-                    }
-                  }}>
+                    }}
+                  >
                     <div className="flex items-center gap-3">
                       <input
                         type="checkbox"
@@ -140,7 +159,11 @@ export default function BibleStudy() {
                         <div key={ref}>
                           <p className="font-semibold text-amber-600 mb-1">{ref}</p>
                           {verseCache[ref] ? (
-                            <p className="whitespace-pre-wrap">{verseCache[ref]}</p>
+                            <div className="space-y-1">
+                            {verseCache[ref].split('\n').map((ln, idx) => (
+                              <p key={idx} className="leading-relaxed"><span className="font-semibold text-amber-700 mr-1">{ln.split(' ')[0]}</span>{ln.substring(ln.indexOf(' ') + 1)}</p>
+                            ))}
+                          </div>
                           ) : (
                             <p className="italic text-gray-400">Loading...</p>
                           )}
@@ -158,7 +181,7 @@ export default function BibleStudy() {
 
     return (
       <div className="bg-white rounded-xl shadow-lg p-6">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-center mb-4 sticky top-0 bg-white z-10 border-b pb-2">
           <h3 className="text-xl font-semibold">Bible Reading Plans</h3>
           <button
             onClick={() => setShowCreateModal(true)}
@@ -275,11 +298,53 @@ export default function BibleStudy() {
           <div className="lg:col-span-3">
             {renderStudyTool()}
 
+            {/* Reading Modal for Mobile */}
+            {readingModal && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center sm:hidden">
+                <div className="bg-white rounded-lg w-[95%] max-h-[90vh] overflow-y-auto p-5 shadow-xl">
+                  <div className="flex justify-between items-center mb-4 sticky top-0 bg-white z-10 border-b pb-2">
+                    <h3 className="text-xl font-semibold">Day {readingModal.day}</h3>
+                    <button
+                      onClick={() => setReadingModal(null)}
+                      className="text-gray-600 hover:text-gray-800"
+                    >
+                      <i className="fas fa-times text-lg"></i>
+                    </button>
+                  </div>
+                  {readingModal.reading.passages.map((ref: string) => (
+                    <div key={ref} className="mb-6">
+                      <p className="font-semibold text-amber-600 mb-2">{ref}</p>
+                      {verseCache[ref] ? (
+                        <div className="space-y-1">
+                          {verseCache[ref].split('\n').map((ln, idx) => (
+                            <p key={idx} className="leading-relaxed text-base">
+                              <span className="font-semibold text-amber-700 mr-1">{ln.split(' ')[0]}</span>
+                              {ln.substring(ln.indexOf(' ') + 1)}
+                            </p>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="italic text-gray-400">Loading...</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Create Plan Modal */}
             {showCreateModal && (
               <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-                <div className="bg-white rounded-lg w-full max-w-lg p-6 shadow-xl">
-                  <h3 className="text-lg font-semibold mb-4">Create Custom Plan</h3>
+                <div className="bg-white rounded-lg w-full max-w-lg p-6 shadow-xl relative">
+                  <div className="flex justify-between items-center mb-4 sticky top-0 bg-white z-10 border-b pb-2">
+                    <h3 className="text-lg font-semibold">Create Custom Plan</h3>
+                    <button
+                      onClick={() => setShowCreateModal(false)}
+                      className="text-gray-600 hover:text-gray-800"
+                    >
+                      <i className="fas fa-times text-lg"></i>
+                    </button>
+                  </div>
                   <div className="space-y-4">
                     <input
                       type="text"
