@@ -5,6 +5,7 @@ import { AltarPracticeService } from '../../lib/altar-practice-service'
 import { AltarSessionService } from '../../lib/altar-session-service'
 import { AltarPractice as AltarPracticeType, AltarFormData } from '../../types/altar.types'
 import AltarDetail from './AltarDetail'
+import AltarSessions from './AltarSessions'
 
 
 
@@ -23,6 +24,7 @@ export default function AltarPractice() {
   const [customItemInput, setCustomItemInput] = useState('')
   const [view, setView] = useState('list') // 'list', 'create', 'detail'
   const [detailAltar, setDetailAltar] = useState<AltarPracticeType | null>(null)
+  const [sessionsAltar, setSessionsAltar] = useState<AltarPracticeType | null>(null)
   
   // Debug: Log detailAltar state changes
   useEffect(() => {
@@ -497,6 +499,16 @@ export default function AltarPractice() {
     )
   }
 
+  if (view === 'sessions' && sessionsAltar) {
+    return (
+      <AltarSessions 
+        altarId={sessionsAltar.id} 
+        altarName={sessionsAltar.name} 
+        onBack={() => setView('list')} 
+      />
+    )
+  }
+
   // Default list view
   return (
     <>
@@ -564,16 +576,26 @@ export default function AltarPractice() {
                       
                       <div className="flex items-center justify-between text-sm text-gray-500">
                         <span>Created {formatRelativeTime(altar.created_at)}</span>
-                        <button 
-                          className="text-purple-600 hover:text-purple-700 font-medium" 
-                          onClick={() => {
-                            console.log('Button clicked, setting detailAltar:', altar);
-                            setDetailAltar(altar);
-                            setView('detail');
-                          }}
-                        >
-                          View Details →
-                        </button>
+                        <div className="flex gap-4">
+                          <button 
+                            className="text-purple-600 hover:text-purple-700 font-medium" 
+                            onClick={() => {
+                              setSessionsAltar(altar);
+                              setView('sessions');
+                            }}
+                          >
+                            Session Logs →
+                          </button>
+                          <button 
+                            className="text-gray-600 hover:text-gray-700 font-medium" 
+                            onClick={() => {
+                              setDetailAltar(altar);
+                              setView('detail');
+                            }}
+                          >
+                            View Details →
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )

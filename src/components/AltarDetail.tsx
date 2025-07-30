@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { AltarPractice, AltarSession, CreateAltarSessionInput } from '../../types/altar.types'
 import { AltarSessionService } from '../../lib/altar-session-service'
 import { supabase } from '../../lib/supabaseClient'
@@ -23,11 +23,32 @@ const activityOptions = [
 ]
 
 export default function AltarDetail({ altar, onClose }: Props) {
+  type SortOption = 'newest' | 'oldest' | 'activities-high' | 'activities-low'
+  const [sortBy, setSortBy] = useState<SortOption>('newest')
   const [sessions, setSessions] = useState<AltarSession[]>([])
+  const sortedSessions = useMemo(() => {
+    const sorted = [...sessions]
+    sorted.sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return new Date(b.session_date + 'T' + b.session_time).getTime() - new Date(a.session_date + 'T' + a.session_time).getTime()
+        case 'oldest':
+          return new Date(a.session_date + 'T' + a.session_time).getTime() - new Date(b.session_date + 'T' + b.session_time).getTime()
+        case 'activities-high':
+          return (b.activities?.length || 0) - (a.activities?.length || 0)
+        case 'activities-low':
+          return (a.activities?.length || 0) - (b.activities?.length || 0)
+        default:
+          return 0
+      }
+    })
+    return sorted
+  }, [sessions, sortBy])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showEntries, setShowEntries] = useState(true) // Show entries by default
   const [showAddForm, setShowAddForm] = useState(false)
+  
 
   // form state
   const [date, setDate] = useState<string>('')
@@ -297,7 +318,22 @@ export default function AltarDetail({ altar, onClose }: Props) {
                 </div>
               )}
 
-              {/* Sessions List */}
+              {/* Sort & Sessions List */}
+              {/* Sort dropdown */}
+              <div className="flex items-center justify-end mb-2">
+                <label className="mr-2 text-xs sm:text-sm text-gray-600">Sort by:</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortOption)}
+                  className="border border-gray-300 rounded-md text-xs sm:text-sm px-2 py-1 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="activities-high">Activities (high→low)</option>
+                  <option value="activities-low">Activities (low→high)</option>
+                </select>
+              </div>
+
               {loading ? (
                 <div className="flex justify-center items-center py-6 sm:py-8">
                   <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-t-2 border-b-2 border-purple-500"></div>
@@ -315,7 +351,7 @@ export default function AltarDetail({ altar, onClose }: Props) {
                 </div>
               ) : (
                 <div className="space-y-3 sm:space-y-4">
-                  {sessions.map((s) => (
+                  {sortedSessions.map((s) => (
                     <div key={s.id} className="border border-gray-200 rounded-lg p-3 sm:p-4 bg-white hover:shadow-md transition-shadow">
                       <div className="flex items-start space-x-3 mb-3">
                         <div className="w-8 h-8 sm:w-10 sm:h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">

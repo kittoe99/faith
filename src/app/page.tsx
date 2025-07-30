@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Navigation from '@/components/Navigation'
 import Dashboard from '@/components/Dashboard'
+import MobileBottomNav from '@/components/MobileBottomNav'
 import AltarPractice from '@/components/AltarPractice'
 import Bible from '@/components/Bible'
 import BibleStudy from '@/components/BibleStudy'
@@ -65,7 +66,12 @@ export default function Home() {
   return (
     <AuthGuard requireAuth={true}>
       <div className="max-w-screen-xl mx-auto main-grid">
-        <Navigation activeSection={activeSection} />
+        {/* Desktop sidebar */}
+        <div className="hidden md:block">
+          <Navigation activeSection={activeSection} />
+        </div>
+        {/* Mobile bottom nav */}
+        <MobileBottomNav activeSection={activeSection} />
         
         <main>
           <header className="mb-8">
