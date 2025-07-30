@@ -49,7 +49,7 @@ export default function MobileBottomNav({ activeSection }: Props) {
                   className={`flex flex-col items-center text-xs px-2 ${activeSection === item.id ? "text-purple-600" : "text-gray-500"}`}
                   onClick={() => handleNav(item.id)}
                 >
-                  <i className={`text-xl ${item.icon}`}></i>
+                  <i className={`text-3xl ${item.icon}`}></i>
                 </button>
               ))}
               {/* Menu toggle */}
@@ -77,7 +77,7 @@ export default function MobileBottomNav({ activeSection }: Props) {
                   }`}
                   onClick={() => handleNav(item.id)}
                 >
-                  <i className={`text-2xl mb-1 ${item.icon}`}></i>
+                  <i className={`text-4xl mb-1 ${item.icon}`}></i>
                   <span className="text-xs font-medium">{item.label}</span>
                 </button>
               ))}
