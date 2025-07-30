@@ -25,6 +25,7 @@
 }
 
 body {
+  overflow-x: hidden;
   font-family: 'Inter', sans-serif;
   background-color: var(--bg-main);
   color: var(--text-primary);
@@ -243,6 +244,14 @@ body {
 
 /* Responsive adjustments */
 @media (max-width: 767px) {
+  /* Off-canvas sidebar using transform so it doesn't extend page width */
+  .nav-menu {
+    left: 0;
+    transform: translateX(-100%);
+  }
+  .nav-menu.active {
+    transform: translateX(0);
+  }
   .main-grid {
     padding: 1rem;
   }

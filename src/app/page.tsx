@@ -10,6 +10,7 @@ import BibleStudy from '@/components/BibleStudy'
 import Tasks from '@/components/Tasks'
 import Journal from '@/components/Journal'
 import Resources from '@/components/Resources'
+import AiChat from '@/components/AiChat'
 import { AuthGuard } from '@/components/AuthGuard'
 
 export default function Home() {
@@ -37,9 +38,10 @@ export default function Home() {
       altar: 'Altar Practice',
       bible: 'Holy Bible',
       'bible-study': 'Bible Study',
-    tasks: 'Tasks',
+      tasks: 'Tasks',
       journal: 'Journal',
-      resources: 'Resources'
+      resources: 'Resources',
+      ai: 'Ai Chat'
     }
     setPageTitle(titles[section] || 'Dashboard')
   }
@@ -58,6 +60,8 @@ export default function Home() {
         return <Journal />
       case 'resources':
         return <Resources />
+      case 'ai':
+        return <AiChat />
       default:
         return <Dashboard />
     }

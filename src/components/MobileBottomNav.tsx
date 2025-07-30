@@ -15,6 +15,8 @@ const menuItems = [
   { id: "tasks", label: "Tasks", icon: "fas fa-tasks" },
   { id: "journal", label: "Journal", icon: "fas fa-feather-alt" },
   { id: "resources", label: "Resources", icon: "fas fa-toolbox" },
+  { id: "ai", label: "Ai", icon: "fas fa-robot" }
+
 ];
 
 export default function MobileBottomNav({ activeSection }: Props) {
