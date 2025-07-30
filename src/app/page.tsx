@@ -11,6 +11,7 @@ import Tasks from '@/components/Tasks'
 import Journal from '@/components/Journal'
 import Resources from '@/components/Resources'
 import AiChat from '@/components/AiChat'
+import ChatModal from '@/components/ChatModal'
 import { AuthGuard } from '@/components/AuthGuard'
 
 export default function Home() {
@@ -76,6 +77,8 @@ export default function Home() {
         </div>
         {/* Mobile bottom nav */}
         <MobileBottomNav activeSection={activeSection} />
+        {/* Floating chat modal button (mobile only) */}
+        <ChatModal />
         
         <main className="pb-32 md:pb-0">
           <header className="mb-8">

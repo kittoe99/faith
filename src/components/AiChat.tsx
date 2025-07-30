@@ -47,7 +47,7 @@ export default function AiChat() {
 
   return (
     <div className="flex justify-center items-center w-full h-full px-2 sm:px-4 min-w-0">
-      <div className="flex flex-col w-full sm:w-auto max-w-full sm:max-w-md md:max-w-lg lg:max-w-xl mx-auto h-[75vh] sm:h-[80vh] bg-white border rounded-2xl shadow-lg overflow-hidden text-sm min-w-0">
+      <div className="flex flex-col w-full sm:w-auto max-w-full sm:max-w-lg md:max-w-xl lg:max-w-2xl mx-auto h-[75vh] sm:h-[80vh] bg-white border rounded-2xl shadow-lg overflow-hidden text-sm min-w-0">
         {/* Header */}
         <div className="flex items-center gap-2 px-4 py-3 border-b bg-gradient-to-r from-purple-600 to-purple-500 text-white">
           <i className="fas fa-robot" />
