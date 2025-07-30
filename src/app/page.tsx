@@ -73,7 +73,7 @@ export default function Home() {
         {/* Mobile bottom nav */}
         <MobileBottomNav activeSection={activeSection} />
         
-        <main>
+        <main className="pb-32 md:pb-0">
           <header className="mb-8">
             <h1 id="page-title" className="text-3xl font-bold mb-2">{pageTitle}</h1>
             <p className="text-lg text-gray-600">A record of faith, growth, and grace.</p>

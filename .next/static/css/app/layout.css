@@ -1504,6 +1504,9 @@ video {
 .pb-10 {
   padding-bottom: 2.5rem;
 }
+.pb-32 {
+  padding-bottom: 8rem;
+}
 .text-left {
   text-align: left;
 }
@@ -2451,6 +2454,10 @@ body {
 
   .md\:p-8 {
     padding: 2rem;
+  }
+
+  .md\:pb-0 {
+    padding-bottom: 0px;
   }
 }
 @media (min-width: 1024px) {
