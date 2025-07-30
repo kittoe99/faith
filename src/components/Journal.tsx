@@ -1,5 +1,6 @@
 'use client'
 
+import Modal from './ui/Modal'
 import { useState, useEffect } from 'react'
 import { JournalService } from '../../lib/journal-service'
 import { JournalEntry as DBJournalEntry } from '../../types/journal.types'
@@ -110,10 +111,9 @@ export default function Journal() {
           </button>
         </div>
 
-        {/* Journal Editor */}
+        {/* Journal Editor Modal */}
         {showEditor && (
-          <div className="dashboard-card mb-6">
-            <h3 className="text-lg font-semibold mb-4">New Journal Entry</h3>
+          <Modal open={true} onClose={() => setShowEditor(false)} title="New Journal Entry" widthClass="max-w-2xl">
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
@@ -168,7 +168,7 @@ export default function Journal() {
                 </button>
               </div>
             </div>
-          </div>
+          </Modal>
         )}
 
         {/* Journal Entries */}

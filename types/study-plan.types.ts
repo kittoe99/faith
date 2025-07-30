@@ -1,7 +1,8 @@
 export interface DailyReading {
   day: number;
   passages: string[]; // e.g. ["Genesis 1", "Matthew 1"]
-  topic?: string; // optional topic/theme for the day
+  heading?: string; // optional heading/theme for the day (legacy: topic)
+  topic?: string;
 }
 
 export interface StudyPlan {

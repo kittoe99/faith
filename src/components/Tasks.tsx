@@ -1,5 +1,6 @@
 'use client'
 
+import Modal from './ui/Modal'
 import { useState, useEffect } from 'react'
 import { TasksService } from '../../lib/tasks-service'
 import { Task, CreateTaskInput } from '../../types/task.types'
@@ -104,10 +105,9 @@ export default function Tasks() {
           </button>
         </div>
 
-        {/* Add Task Form */}
+        {/* Add Task Form Modal */}
         {showAddForm && (
-          <div className="dashboard-card mb-6">
-            <h3 className="text-lg font-semibold mb-4">Add New Spiritual Goal</h3>
+          <Modal open={true} onClose={() => setShowAddForm(false)} title="Add New Spiritual Goal" widthClass="max-w-2xl">
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Goal Title</label>
@@ -171,7 +171,7 @@ export default function Tasks() {
                 </button>
               </div>
             </div>
-          </div>
+          </Modal>
         )}
 
         {/* Active Tasks */}

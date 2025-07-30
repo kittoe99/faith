@@ -1,5 +1,6 @@
 'use client'
 
+import Modal from './ui/Modal'
 import { useState, useEffect } from 'react'
 import { getBibleBooks, getBibleChapter } from '../../lib/bible-service'
 import { BibleBook, BibleVerse } from '../../types/bible.types'
@@ -15,6 +16,13 @@ export default function Bible() {
   const [fontSize, setFontSize] = useState('text-base')
   const [showOldTestament, setShowOldTestament] = useState(true)
   const [showNewTestament, setShowNewTestament] = useState(true)
+  
+  // Modal states
+  const [showBooksModal, setShowBooksModal] = useState(false)
+  const [showChapterModal, setShowChapterModal] = useState(false)
+  const [showChapterListModal, setShowChapterListModal] = useState(false)
+  const [showSettingsModal, setShowSettingsModal] = useState(false)
+  const [bookmarks, setBookmarks] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     fetchBooks()
@@ -41,12 +49,31 @@ export default function Bible() {
       setChapters(chapterVerses)
       setSelectedBook(book)
       setSelectedChapter(chapterId)
+      setShowChapterModal(true)
+      setShowBooksModal(false)
+      setShowChapterListModal(false)
     } catch (err) {
       setError('Failed to load Bible chapter')
       console.error(err)
     } finally {
       setLoading(false)
     }
+  }
+
+  const toggleBookmark = (verseKey: string) => {
+    const newBookmarks = new Set(bookmarks)
+    if (newBookmarks.has(verseKey)) {
+      newBookmarks.delete(verseKey)
+    } else {
+      newBookmarks.add(verseKey)
+    }
+    setBookmarks(newBookmarks)
+  }
+
+  const openChapterList = (book: BibleBook) => {
+    setSelectedBook(book)
+    setShowBooksModal(false)
+    setShowChapterListModal(true)
   }
 
   const filteredBooks = books.filter(book => {
@@ -93,21 +120,6 @@ export default function Bible() {
     }
   }
 
-  // Mobile dropdown handlers
-  const handleBookSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const id = Number(e.target.value);
-    const book = books.find(b => b.bookid === id);
-    if (book) {
-      fetchChapter(book, 1);
-    }
-  };
-
-  const handleChapterSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    if (!selectedBook) return;
-    const chap = Number(e.target.value);
-    fetchChapter(selectedBook, chap);
-  };
-
   return (
     <section className="content-section active">
       <div className="max-w-7xl mx-auto">
@@ -116,306 +128,358 @@ export default function Bible() {
           <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full mb-4 shadow-lg">
             <i className="fas fa-book-bible text-white text-2xl"></i>
           </div>
-          <h2 className="text-3xl font-bold text-gray-800 mb-2">Holy Bible</h2>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            "All Scripture is God-breathed and is useful for teaching, rebuking, correcting and training in righteousness." - 2 Timothy 3:16
+          <h1 className="text-4xl font-bold text-gray-800 mb-2">Holy Bible</h1>
+          <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+            Read and study God's Word with our comprehensive Bible reader
           </p>
         </div>
 
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6 rounded-r-lg">
-            <div className="flex">
-              <i className="fas fa-exclamation-triangle text-red-400 mr-3 mt-1"></i>
-              <p className="text-red-700">{error}</p>
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+            <div className="flex items-center">
+              <i className="fas fa-exclamation-triangle mr-2"></i>
+              {error}
             </div>
           </div>
         )}
 
-        {/* Mobile Book/Chapter Selectors */}
-        {books.length > 0 && (
-          <div className="lg:hidden mb-6">
-            <div className="mb-3">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Book</label>
-              <select
-                value={selectedBook?.bookid ?? ''}
-                onChange={handleBookSelect}
-                className="w-full border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-amber-500"
-              >
-                <option value="" disabled>Select a book</option>
-                {books.map((b) => (
-                  <option key={b.bookid} value={b.bookid}>{b.name}</option>
-                ))}
-              </select>
-            </div>
-            {selectedBook && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Chapter</label>
-                <select
-                  value={selectedChapter ?? ''}
-                  onChange={handleChapterSelect}
-                  className="w-full border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-amber-500"
-                >
-                  <option value="" disabled>Select a chapter</option>
-                  {Array.from({ length: selectedBook.chapters }, (_, i) => i + 1).map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
+        {/* Action Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <div 
+            onClick={() => setShowBooksModal(true)}
+            className="bg-white rounded-xl shadow-lg p-6 cursor-pointer hover:shadow-xl transition-all duration-300 hover:scale-105"
+          >
+            <div className="flex items-center mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center mr-4">
+                <i className="fas fa-book text-white text-xl"></i>
               </div>
-            )}
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar - Book Selection */}
-          <div className="hidden lg:block lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-lg p-6 sticky top-4">
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3">Books of the Bible</h3>
-                
-                {/* Search */}
-                <div className="relative mb-4">
-                  <input
-                    type="text"
-                    placeholder="Search books..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  />
-                  <i className="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-                </div>
-
-                {/* Testament Filters */}
-                <div className="flex gap-2 mb-4">
-                  <button
-                    onClick={() => setShowOldTestament(!showOldTestament)}
-                    className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                      showOldTestament 
-                        ? 'bg-blue-500 text-white' 
-                        : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                    }`}
-                  >
-                    Old Testament
-                  </button>
-                  <button
-                    onClick={() => setShowNewTestament(!showNewTestament)}
-                    className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                      showNewTestament 
-                        ? 'bg-purple-500 text-white' 
-                        : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                    }`}
-                  >
-                    New Testament
-                  </button>
-                </div>
-              </div>
-
-              {loading && books.length === 0 ? (
-                <div className="text-center py-4">
-                  <i className="fas fa-spinner fa-spin text-gray-400 text-xl mb-2"></i>
-                  <p className="text-gray-500">Loading books...</p>
-                </div>
-              ) : (
-                <div className="space-y-4 max-h-96 overflow-y-auto">
-                  {/* Old Testament */}
-                  {showOldTestament && oldTestamentBooks.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-medium text-blue-600 mb-2 uppercase tracking-wide">Old Testament</h4>
-                      <div className="space-y-1">
-                        {oldTestamentBooks.map((book) => (
-                          <button
-                            key={book.bookid}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                              selectedBook?.bookid === book.bookid 
-                                ? 'bg-blue-500 text-white shadow-md' 
-                                : 'hover:bg-blue-50 text-gray-700'
-                            }`}
-                            onClick={() => {
-                              setSelectedBook(book)
-                              setSelectedChapter(null)
-                              setChapters([])
-                            }}
-                          >
-                            {book.name}
-                            <span className="text-xs opacity-75 ml-1">({book.chapters})</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* New Testament */}
-                  {showNewTestament && newTestamentBooks.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-medium text-purple-600 mb-2 uppercase tracking-wide">New Testament</h4>
-                      <div className="space-y-1">
-                        {newTestamentBooks.map((book) => (
-                          <button
-                            key={book.bookid}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                              selectedBook?.bookid === book.bookid 
-                                ? 'bg-purple-500 text-white shadow-md' 
-                                : 'hover:bg-purple-50 text-gray-700'
-                            }`}
-                            onClick={() => {
-                              setSelectedBook(book)
-                              setSelectedChapter(null)
-                              setChapters([])
-                            }}
-                          >
-                            {book.name}
-                            <span className="text-xs opacity-75 ml-1">({book.chapters})</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+              <h3 className="text-xl font-semibold text-gray-800">Browse Books</h3>
             </div>
+            <p className="text-gray-600">Explore all 66 books of the Bible</p>
           </div>
 
-          {/* Main Content */}
-          <div className="lg:col-span-3">
-            {selectedBook ? (
-              <div className="space-y-6">
-                {/* Chapter Selection */}
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4">
-                    <h3 className="text-xl font-semibold text-gray-800 mb-2 sm:mb-0">
-                      {selectedBook.name}
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-500">Font size:</span>
-                      <select
-                        value={fontSize}
-                        onChange={(e) => setFontSize(e.target.value)}
-                        className="text-sm border border-gray-300 rounded px-2 py-1"
-                      >
-                        <option value="text-sm">Small</option>
-                        <option value="text-base">Medium</option>
-                        <option value="text-lg">Large</option>
-                        <option value="text-xl">Extra Large</option>
-                      </select>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2">
-                    {Array.from({ length: selectedBook.chapters }, (_, i) => i + 1).map((chapter) => (
-                      <button
-                        key={chapter}
-                        className={`p-2 text-center rounded-lg text-sm font-medium transition-colors ${
-                          selectedChapter === chapter 
-                            ? 'bg-amber-500 text-white shadow-md' 
-                            : 'bg-gray-100 hover:bg-amber-100 text-gray-700'
-                        }`}
-                        onClick={() => fetchChapter(selectedBook, chapter)}
-                      >
-                        {chapter}
-                      </button>
-                    ))}
-                  </div>
+          {selectedBook && (
+            <div 
+              onClick={() => openChapterList(selectedBook)}
+              className="bg-white rounded-xl shadow-lg p-6 cursor-pointer hover:shadow-xl transition-all duration-300 hover:scale-105"
+            >
+              <div className="flex items-center mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-lg flex items-center justify-center mr-4">
+                  <i className="fas fa-list text-white text-xl"></i>
                 </div>
-
-                {/* Chapter Content */}
-                {selectedChapter && (
-                  <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-                    {/* Chapter Header */}
-                    <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h2 className="text-2xl font-bold">{selectedBook.name} {selectedChapter}</h2>
-                          <p className="text-amber-100 mt-1">Chapter {selectedChapter} of {selectedBook.chapters}</p>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={goToPreviousChapter}
-                            disabled={selectedBook.bookid === 1 && selectedChapter === 1}
-                            className="p-2 rounded-lg bg-white/20 hover:bg-white/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                          >
-                            <i className="fas fa-chevron-left"></i>
-                          </button>
-                          <button
-                            onClick={goToNextChapter}
-                            disabled={selectedBook.bookid === books[books.length - 1]?.bookid && selectedChapter === selectedBook.chapters}
-                            className="p-2 rounded-lg bg-white/20 hover:bg-white/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                          >
-                            <i className="fas fa-chevron-right"></i>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Chapter Verses */}
-                    <div className="p-6">
-                      {loading ? (
-                        <div className="text-center py-12">
-                          <i className="fas fa-spinner fa-spin text-amber-500 text-2xl mb-4"></i>
-                          <p className="text-gray-500">Loading chapter...</p>
-                        </div>
-                      ) : chapters.length > 0 ? (
-                        <div className={`space-y-4 ${fontSize} leading-relaxed`}>
-                          {chapters.map((verse) => (
-                            <div key={verse.verse} className="flex group hover:bg-amber-50 p-2 rounded-lg transition-colors">
-                              <span className="font-bold text-amber-600 mr-4 w-8 flex-shrink-0 text-sm">
-                                {verse.verse}
-                              </span>
-                              <span className="text-gray-800 flex-1">{verse.text}</span>
-                              <div className="opacity-0 group-hover:opacity-100 transition-opacity ml-2">
-                                <button className="text-gray-400 hover:text-amber-500 p-1">
-                                  <i className="fas fa-bookmark text-xs"></i>
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-12 text-gray-500">
-                          <i className="fas fa-book-open text-4xl mb-4"></i>
-                          <p>No verses found for this chapter</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Chapter Navigation Footer */}
-                    {selectedChapter && (
-                      <div className="bg-gray-50 px-6 py-4 flex justify-between items-center">
-                        <button
-                          onClick={goToPreviousChapter}
-                          disabled={selectedBook.bookid === 1 && selectedChapter === 1}
-                          className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                          <i className="fas fa-chevron-left"></i>
-                          Previous Chapter
-                        </button>
-                        <span className="text-sm text-gray-500">
-                          {selectedBook.name} {selectedChapter}:{chapters.length} verses
-                        </span>
-                        <button
-                          onClick={goToNextChapter}
-                          disabled={selectedBook.bookid === books[books.length - 1]?.bookid && selectedChapter === selectedBook.chapters}
-                          className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                          Next Chapter
-                          <i className="fas fa-chevron-right"></i>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
+                <h3 className="text-xl font-semibold text-gray-800">Chapters</h3>
               </div>
-            ) : (
-              <div className="bg-white rounded-xl shadow-lg p-12 text-center">
-                <div className="w-24 h-24 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <i className="fas fa-book-bible text-white text-3xl"></i>
-                </div>
-                <h3 className="text-2xl font-semibold text-gray-800 mb-4">Select a Book to Begin</h3>
-                <p className="text-gray-600 max-w-md mx-auto">
-                  Choose a book from the sidebar to start reading God's Word. You can search for specific books or browse by testament.
-                </p>
+              <p className="text-gray-600">Browse {selectedBook.name} chapters</p>
+            </div>
+          )}
+
+          <div 
+            onClick={() => setShowSettingsModal(true)}
+            className="bg-white rounded-xl shadow-lg p-6 cursor-pointer hover:shadow-xl transition-all duration-300 hover:scale-105"
+          >
+            <div className="flex items-center mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-purple-600 rounded-lg flex items-center justify-center mr-4">
+                <i className="fas fa-cog text-white text-xl"></i>
               </div>
-            )}
+              <h3 className="text-xl font-semibold text-gray-800">Settings</h3>
+            </div>
+            <p className="text-gray-600">Customize your reading experience</p>
           </div>
         </div>
+
+        {/* Current Reading Display */}
+        {selectedBook && selectedChapter && (
+          <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-2xl font-semibold text-gray-800">
+                Currently Reading: {selectedBook.name} {selectedChapter}
+              </h3>
+              <button
+                onClick={() => setShowChapterModal(true)}
+                className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
+              >
+                Continue Reading
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Books Modal */}
+        {showBooksModal && (
+          <Modal 
+            open={true} 
+            onClose={() => setShowBooksModal(false)} 
+            title="Select a Book"
+            widthClass="max-w-4xl"
+          >
+            <div className="mb-6">
+              {/* Search */}
+              <div className="relative mb-4">
+                <input
+                  type="text"
+                  placeholder="Search books..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                />
+                <i className="fas fa-search absolute left-3 top-4 text-gray-400"></i>
+              </div>
+
+              {/* Testament Filters */}
+              <div className="flex gap-3 mb-6">
+                <button
+                  onClick={() => setShowOldTestament(!showOldTestament)}
+                  className={`px-4 py-2 rounded-lg transition-colors ${
+                    showOldTestament 
+                      ? 'bg-amber-500 text-white' 
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  Old Testament
+                </button>
+                <button
+                  onClick={() => setShowNewTestament(!showNewTestament)}
+                  className={`px-4 py-2 rounded-lg transition-colors ${
+                    showNewTestament 
+                      ? 'bg-amber-500 text-white' 
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  New Testament
+                </button>
+              </div>
+            </div>
+
+            {/* Old Testament Books */}
+            {showOldTestament && oldTestamentBooks.length > 0 && (
+              <div className="mb-8">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  <i className="fas fa-scroll mr-2 text-amber-500"></i>
+                  Old Testament
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {oldTestamentBooks.map((book) => (
+                    <button
+                      key={book.bookid}
+                      onClick={() => openChapterList(book)}
+                      className="p-3 text-left bg-gray-50 hover:bg-amber-50 hover:border-amber-200 border border-gray-200 rounded-lg transition-all duration-200 hover:shadow-md"
+                    >
+                      <div className="font-medium text-gray-800">{book.name}</div>
+                      <div className="text-sm text-gray-500">{book.chapters} chapters</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* New Testament Books */}
+            {showNewTestament && newTestamentBooks.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  <i className="fas fa-cross mr-2 text-amber-500"></i>
+                  New Testament
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {newTestamentBooks.map((book) => (
+                    <button
+                      key={book.bookid}
+                      onClick={() => openChapterList(book)}
+                      className="p-3 text-left bg-gray-50 hover:bg-amber-50 hover:border-amber-200 border border-gray-200 rounded-lg transition-all duration-200 hover:shadow-md"
+                    >
+                      <div className="font-medium text-gray-800">{book.name}</div>
+                      <div className="text-sm text-gray-500">{book.chapters} chapters</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Modal>
+        )}
+
+        {/* Chapter List Modal */}
+        {showChapterListModal && selectedBook && (
+          <Modal 
+            open={true} 
+            onClose={() => setShowChapterListModal(false)} 
+            title={`${selectedBook.name} - Select Chapter`}
+            widthClass="max-w-2xl"
+          >
+            <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+              {Array.from({ length: selectedBook.chapters }, (_, i) => i + 1).map((chapterNum) => (
+                <button
+                  key={chapterNum}
+                  onClick={() => fetchChapter(selectedBook, chapterNum)}
+                  className={`p-3 rounded-lg border-2 transition-all duration-200 hover:shadow-md ${
+                    selectedChapter === chapterNum
+                      ? 'bg-amber-500 text-white border-amber-500'
+                      : 'bg-white text-gray-700 border-gray-200 hover:border-amber-300 hover:bg-amber-50'
+                  }`}
+                >
+                  <div className="text-center font-semibold">{chapterNum}</div>
+                </button>
+              ))}
+            </div>
+          </Modal>
+        )}
+
+        {/* Settings Modal */}
+        {showSettingsModal && (
+          <Modal 
+            open={true} 
+            onClose={() => setShowSettingsModal(false)} 
+            title="Reading Settings"
+            widthClass="max-w-md"
+          >
+            <div className="space-y-6">
+              {/* Font Size */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">Font Size</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: 'text-sm', label: 'Small' },
+                    { value: 'text-base', label: 'Medium' },
+                    { value: 'text-lg', label: 'Large' }
+                  ].map((size) => (
+                    <button
+                      key={size.value}
+                      onClick={() => setFontSize(size.value)}
+                      className={`p-3 rounded-lg border-2 transition-all ${
+                        fontSize === size.value
+                          ? 'bg-amber-500 text-white border-amber-500'
+                          : 'bg-white text-gray-700 border-gray-200 hover:border-amber-300'
+                      }`}
+                    >
+                      {size.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Testament Display */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">Testament Display</label>
+                <div className="space-y-2">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={showOldTestament}
+                      onChange={(e) => setShowOldTestament(e.target.checked)}
+                      className="rounded text-amber-500 focus:ring-amber-500"
+                    />
+                    <span className="ml-2 text-gray-700">Show Old Testament</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={showNewTestament}
+                      onChange={(e) => setShowNewTestament(e.target.checked)}
+                      className="rounded text-amber-500 focus:ring-amber-500"
+                    />
+                    <span className="ml-2 text-gray-700">Show New Testament</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </Modal>
+        )}
+
+        {/* Enhanced Chapter Reading Modal */}
+        {showChapterModal && selectedBook && selectedChapter && (
+          <Modal 
+            open={true} 
+            onClose={() => setShowChapterModal(false)} 
+            title={
+              <div className="flex items-center justify-between w-full">
+                <span>{selectedBook.name} {selectedChapter}</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={goToPreviousChapter}
+                    disabled={selectedBook.bookid === 1 && selectedChapter === 1}
+                    className="p-2 text-gray-600 hover:text-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title="Previous Chapter"
+                  >
+                    <i className="fas fa-chevron-left"></i>
+                  </button>
+                  <button
+                    onClick={goToNextChapter}
+                    disabled={selectedBook.bookid === books[books.length - 1]?.bookid && selectedChapter === selectedBook.chapters}
+                    className="p-2 text-gray-600 hover:text-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title="Next Chapter"
+                  >
+                    <i className="fas fa-chevron-right"></i>
+                  </button>
+                </div>
+              </div>
+            }
+            widthClass="max-w-4xl"
+          >
+            {loading ? (
+              <div className="text-center py-12">
+                <i className="fas fa-spinner fa-spin text-amber-500 text-2xl mb-4"></i>
+                <p className="text-gray-500">Loading chapter...</p>
+              </div>
+            ) : chapters.length > 0 ? (
+              <div>
+                <div className={`space-y-4 ${fontSize} leading-relaxed mb-6`}>
+                  {chapters.map((verse) => {
+                    const verseKey = `${selectedBook.name}-${selectedChapter}-${verse.verse}`
+                    const isBookmarked = bookmarks.has(verseKey)
+                    
+                    return (
+                      <div key={verse.verse} className="flex group hover:bg-amber-50 p-3 rounded-lg transition-colors">
+                        <span className="font-bold text-amber-600 mr-4 w-8 flex-shrink-0 text-sm">
+                          {verse.verse}
+                        </span>
+                        <span className="text-gray-800 flex-1">{verse.text}</span>
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                          <button 
+                            onClick={() => toggleBookmark(verseKey)}
+                            className={`p-1 transition-colors ${
+                              isBookmarked 
+                                ? 'text-amber-500 hover:text-amber-600' 
+                                : 'text-gray-400 hover:text-amber-500'
+                            }`}
+                            title={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
+                          >
+                            <i className={`fas fa-bookmark text-xs ${isBookmarked ? '' : 'far'}`}></i>
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Chapter Navigation Footer */}
+                <div className="bg-gray-50 px-6 py-4 flex justify-between items-center rounded-lg">
+                  <button
+                    onClick={goToPreviousChapter}
+                    disabled={selectedBook.bookid === 1 && selectedChapter === 1}
+                    className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <i className="fas fa-chevron-left"></i>
+                    Previous Chapter
+                  </button>
+                  <span className="text-sm text-gray-500">
+                    {selectedBook.name} {selectedChapter}:{chapters.length} verses
+                  </span>
+                  <button
+                    onClick={goToNextChapter}
+                    disabled={selectedBook.bookid === books[books.length - 1]?.bookid && selectedChapter === selectedBook.chapters}
+                    className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next Chapter
+                    <i className="fas fa-chevron-right"></i>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                <i className="fas fa-book-open text-4xl mb-4"></i>
+                <p>No verses found for this chapter</p>
+              </div>
+            )}
+          </Modal>
+        )}
       </div>
     </section>
   )

@@ -1,5 +1,6 @@
 'use client'
 
+import Modal from './ui/Modal'
 import { useState, useEffect } from 'react'
 import { StudyPlanService } from '../../lib/study-plan-service'
 import { StudyPlanProgressService } from '../../lib/study-plan-progress-service'
@@ -22,6 +23,34 @@ export default function BibleStudy() {
   const [newPlanDescription, setNewPlanDescription] = useState('')
   const [newPlanJson, setNewPlanJson] = useState('[{"day":1,"topic":"Sample","passages":["Genesis 1"]}]')
   const [readingModal, setReadingModal] = useState<{ day: number; reading: any } | null>(null)
+  const [bookmarks, setBookmarks] = useState<Set<string>>(new Set())
+  const [fontSize, setFontSize] = useState('text-base')
+
+  const toggleBookmark = (verseKey: string) => {
+    const newBookmarks = new Set(bookmarks)
+    if (newBookmarks.has(verseKey)) {
+      newBookmarks.delete(verseKey)
+    } else {
+      newBookmarks.add(verseKey)
+    }
+    setBookmarks(newBookmarks)
+  }
+
+  const openEnhancedReadingModal = async (day: number, reading: any) => {
+    setReadingModal({ day, reading })
+    // Pre-load all passages for the enhanced modal
+    for (const ref of reading.passages) {
+      if (!verseCache[ref]) {
+        try {
+          const verses = await fetchPassage(ref)
+          const text = verses.map(v => `${v.reference} ${v.text}`).join('\n')
+          setVerseCache(prev => ({ ...prev, [ref]: text }))
+        } catch (err) {
+          console.error('Failed to load passage:', ref, err)
+        }
+      }
+    }
+  }
 
   useEffect(() => {
     async function loadPlans() {
@@ -96,51 +125,14 @@ export default function BibleStudy() {
           
           <div className="max-h-96 overflow-y-auto space-y-2 mb-6">
             {selectedPlan.readings.map((r) => {
-              const isOpen = expanded[r.day]
-              const passagesText = async (ref: string) => {
-                if (verseCache[ref]) return verseCache[ref]
-                try {
-                  const verses = await fetchPassage(ref)
-                  const text = verses.map(v=>v.text).join(' ')
-                  setVerseCache(prev=>({ ...prev, [ref]: text }))
-                  return text
-                } catch { return 'Error fetching scripture' }
-              }
               const checked = progress.completedDays.includes(r.day)
+              const isOpen = expanded[r.day]
+              
               return (
                 <div key={r.day} className="border border-gray-200 rounded-lg p-3">
                   <div
                     className="flex items-center justify-between"
-                    onClick={async () => {
-                      if (typeof window !== 'undefined' && window.innerWidth < 640) {
-                        // On mobile, open modal for better readability
-                        setReadingModal({ day: r.day, reading: r })
-                        for (const ref of r.passages) {
-                          if (!verseCache[ref]) {
-                            try {
-                              const verses = await fetchPassage(ref)
-                              const text = verses.map(v => `${v.reference} ${v.text}`).join('\n')
-                              setVerseCache(prev => ({ ...prev, [ref]: text }))
-                            } catch {}
-                          }
-                        }
-                        return
-                      }
-
-                      // On larger screens, toggle inline expansion
-                      setExpanded(prev => ({ ...prev, [r.day]: !isOpen }))
-                      if (!isOpen) {
-                        for (const ref of r.passages) {
-                          if (!verseCache[ref]) {
-                            try {
-                              const verses = await fetchPassage(ref)
-                              const text = verses.map(v => `${v.reference} ${v.text}`).join('\n')
-                              setVerseCache(prev => ({ ...prev, [ref]: text }))
-                            } catch {}
-                          }
-                        }
-                      }
-                    }}
+                    onClick={() => openEnhancedReadingModal(r.day, r)}
                   >
                     <div className="flex items-center gap-3">
                       <input
@@ -149,28 +141,19 @@ export default function BibleStudy() {
                         onChange={() => toggleDay(r.day)}
                         onClick={e => e.stopPropagation()}
                       />
-                      <span className="text-sm font-medium">Day {r.day}</span>
-                    </div>
-                    <i className={`fas fa-chevron-${isOpen ? 'up' : 'down'} text-gray-500`} />
-                  </div>
-                  {isOpen && (
-                    <div className="mt-3 space-y-4 text-sm text-gray-700">
-                      {r.passages.map((ref) => (
-                        <div key={ref}>
-                          <p className="font-semibold text-amber-600 mb-1">{ref}</p>
-                          {verseCache[ref] ? (
-                            <div className="space-y-1">
-                            {verseCache[ref].split('\n').map((ln, idx) => (
-                              <p key={idx} className="leading-relaxed"><span className="font-semibold text-amber-700 mr-1">{ln.split(' ')[0]}</span>{ln.substring(ln.indexOf(' ') + 1)}</p>
-                            ))}
-                          </div>
-                          ) : (
-                            <p className="italic text-gray-400">Loading...</p>
-                          )}
+                      <div className="flex-1">
+                        <span className="text-sm font-medium">Day {r.day}</span>
+                        {(r.heading || r.topic) && <span className="text-xs text-amber-600 ml-2 font-semibold">- {r.heading || r.topic}</span>}
+                        <div className="text-xs text-gray-500 mt-1">
+                          {r.passages.join(', ')}
                         </div>
-                      ))}
+                      </div>
                     </div>
-                  )}
+                    <div className="flex items-center gap-2">
+                      <i className="fas fa-book-open text-amber-500 text-sm"></i>
+                      <i className="fas fa-chevron-right text-gray-400 text-sm"></i>
+                    </div>
+                  </div>
                 </div>
               )
             })}
@@ -262,10 +245,10 @@ export default function BibleStudy() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar - Study Tools */}
+          {/* Sidebar */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-lg p-6 sticky top-4">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Study Tools</h3>
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h3 className="text-lg font-semibold mb-4">Study Tools</h3>
               <div className="space-y-2">
                 {studyTools.map((tool) => (
                   <button
@@ -273,8 +256,8 @@ export default function BibleStudy() {
                     onClick={() => setActiveStudyTool(tool.id)}
                     className={`w-full text-left p-3 rounded-lg transition-colors ${
                       activeStudyTool === tool.id
-                        ? 'bg-blue-500 text-white shadow-md'
-                        : 'hover:bg-blue-50 text-gray-700'
+                        ? 'bg-amber-500 text-white shadow-md'
+                        : 'hover:bg-gray-50'
                     }`}
                   >
                     <div className="flex items-center">
@@ -298,110 +281,203 @@ export default function BibleStudy() {
           <div className="lg:col-span-3">
             {renderStudyTool()}
 
-            {/* Reading Modal for Mobile */}
+            {/* Enhanced Reading Modal */}
             {readingModal && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center sm:hidden">
-                <div className="bg-white rounded-lg w-[95%] max-h-[90vh] overflow-y-auto p-5 shadow-xl">
-                  <div className="flex justify-between items-center mb-4 sticky top-0 bg-white z-10 border-b pb-2">
-                    <h3 className="text-xl font-semibold">Day {readingModal.day}</h3>
-                    <button
-                      onClick={() => setReadingModal(null)}
-                      className="text-gray-600 hover:text-gray-800"
-                    >
-                      <i className="fas fa-times text-lg"></i>
-                    </button>
+              <Modal 
+                open={true} 
+                onClose={() => setReadingModal(null)} 
+                title={
+                  <div className="flex items-center justify-between w-full">
+                    <div>
+                      <span className="text-xl font-semibold">Day {readingModal.day}</span>
+                      {(readingModal.reading.heading || readingModal.reading.topic) && (
+                        <span className="text-sm text-amber-600 ml-2 font-medium">- {readingModal.reading.heading || readingModal.reading.topic}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setFontSize(fontSize === 'text-sm' ? 'text-base' : fontSize === 'text-base' ? 'text-lg' : 'text-sm')}
+                        className="p-2 text-gray-600 hover:text-amber-600 transition-colors"
+                        title="Toggle Font Size"
+                      >
+                        <i className="fas fa-text-height"></i>
+                      </button>
+                    </div>
                   </div>
+                }
+                widthClass="max-w-4xl"
+              >
+                <div className="space-y-8">
                   {readingModal.reading.passages.map((ref: string) => (
-                    <div key={ref} className="mb-6">
-                      <p className="font-semibold text-amber-600 mb-2">{ref}</p>
+                    <div key={ref} className="border-b border-gray-100 pb-6 last:border-b-0">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-amber-600">{ref}</h3>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500">
+                            {verseCache[ref] ? `${verseCache[ref].split('\n').length} verses` : 'Loading...'}
+                          </span>
+                        </div>
+                      </div>
+                      
                       {verseCache[ref] ? (
-                        <div className="space-y-1">
-                          {verseCache[ref].split('\n').map((ln, idx) => (
-                            <p key={idx} className="leading-relaxed text-base">
-                              <span className="font-semibold text-amber-700 mr-1">{ln.split(' ')[0]}</span>
-                              {ln.substring(ln.indexOf(' ') + 1)}
-                            </p>
-                          ))}
+                        <div className={`space-y-2 ${fontSize} leading-relaxed`}>
+                          {verseCache[ref].split('\n').filter(line => line.trim()).map((line, idx) => {
+                            // Handle different verse formats: "Book Chapter:Verse Text" or "Chapter:Verse Text"
+                            const verseMatch = line.match(/^(.+?)\s+(\d+:\d+)\s+(.+)$/)
+                            if (verseMatch) {
+                              const [, book, verseRef, verseText] = verseMatch
+                              const verseKey = `${ref}-${verseRef}`
+                              const isBookmarked = bookmarks.has(verseKey)
+                              
+                              return (
+                                <div key={idx} className="flex group hover:bg-amber-50 p-3 rounded-lg transition-colors">
+                                  <span className="font-bold text-amber-600 mr-4 w-16 flex-shrink-0 text-sm">
+                                    {verseRef}
+                                  </span>
+                                  <span className="text-gray-800 flex-1">{verseText}</span>
+                                  <div className="opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                                    <button 
+                                      onClick={() => toggleBookmark(verseKey)}
+                                      className={`p-1 transition-colors ${
+                                        isBookmarked 
+                                          ? 'text-amber-500 hover:text-amber-600' 
+                                          : 'text-gray-400 hover:text-amber-500'
+                                      }`}
+                                      title={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
+                                    >
+                                      <i className={`fas fa-bookmark text-xs ${isBookmarked ? '' : 'far'}`}></i>
+                                    </button>
+                                  </div>
+                                </div>
+                              )
+                            }
+                            
+                            // Handle simple "Chapter:Verse Text" format
+                            const simpleMatch = line.match(/^(\d+:\d+)\s+(.+)$/)
+                            if (simpleMatch) {
+                              const [, verseRef, verseText] = simpleMatch
+                              const verseKey = `${ref}-${verseRef}`
+                              const isBookmarked = bookmarks.has(verseKey)
+                              
+                              return (
+                                <div key={idx} className="flex group hover:bg-amber-50 p-3 rounded-lg transition-colors">
+                                  <span className="font-bold text-amber-600 mr-4 w-16 flex-shrink-0 text-sm">
+                                    {verseRef}
+                                  </span>
+                                  <span className="text-gray-800 flex-1">{verseText}</span>
+                                  <div className="opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                                    <button 
+                                      onClick={() => toggleBookmark(verseKey)}
+                                      className={`p-1 transition-colors ${
+                                        isBookmarked 
+                                          ? 'text-amber-500 hover:text-amber-600' 
+                                          : 'text-gray-400 hover:text-amber-500'
+                                      }`}
+                                      title={isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
+                                    >
+                                      <i className={`fas fa-bookmark text-xs ${isBookmarked ? '' : 'far'}`}></i>
+                                    </button>
+                                  </div>
+                                </div>
+                              )
+                            }
+                            
+                            // If no verse pattern matches, skip this line or treat as continuation
+                            return null
+                          })}
                         </div>
                       ) : (
-                        <p className="italic text-gray-400">Loading...</p>
+                        <div className="text-center py-8">
+                          <i className="fas fa-spinner fa-spin text-amber-500 text-xl mb-2"></i>
+                          <p className="text-gray-500">Loading verses...</p>
+                        </div>
                       )}
                     </div>
                   ))}
                 </div>
-              </div>
+                
+                {/* Reading Progress Footer */}
+                <div className="bg-gray-50 px-6 py-4 mt-6 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-600">
+                      <i className="fas fa-book-open mr-2 text-amber-500"></i>
+                      Day {readingModal.day} Reading Complete
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-gray-500">
+                        {readingModal.reading.passages.length} passage{readingModal.reading.passages.length !== 1 ? 's' : ''}
+                      </span>
+                      <button
+                        onClick={() => setReadingModal(null)}
+                        className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors text-sm"
+                      >
+                        Mark as Read
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </Modal>
             )}
 
             {/* Create Plan Modal */}
             {showCreateModal && (
-              <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-                <div className="bg-white rounded-lg w-full max-w-lg p-6 shadow-xl relative">
-                  <div className="flex justify-between items-center mb-4 sticky top-0 bg-white z-10 border-b pb-2">
-                    <h3 className="text-lg font-semibold">Create Custom Plan</h3>
-                    <button
-                      onClick={() => setShowCreateModal(false)}
-                      className="text-gray-600 hover:text-gray-800"
-                    >
-                      <i className="fas fa-times text-lg"></i>
-                    </button>
-                  </div>
-                  <div className="space-y-4">
-                    <input
-                      type="text"
-                      className="w-full border px-3 py-2 rounded"
-                      placeholder="Title"
-                      value={newPlanTitle}
-                      onChange={(e) => setNewPlanTitle(e.target.value)}
-                    />
-                    <textarea
-                      className="w-full border px-3 py-2 rounded"
-                      placeholder="Description"
-                      value={newPlanDescription}
-                      onChange={(e) => setNewPlanDescription(e.target.value)}
-                    />
-                    <textarea
-                      className="w-full border px-3 py-2 rounded font-mono text-xs h-40"
-                      placeholder="Readings JSON (array of day objects)"
-                      value={newPlanJson}
-                      onChange={(e) => setNewPlanJson(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex justify-end gap-3 mt-6">
-                    <button
-                      className="px-4 py-2 bg-gray-200 rounded"
-                      onClick={() => setShowCreateModal(false)}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      className="px-4 py-2 bg-amber-500 text-white rounded"
-                      onClick={async () => {
-                        try {
-                          const readings = JSON.parse(newPlanJson)
-                          const plan: Omit<StudyPlan, 'id'> = {
-                            title: newPlanTitle,
-                            description: newPlanDescription,
-                            duration: readings.length,
-                            readings,
-                          }
-                          const id = await createStudyPlan(plan)
-                          if (id) {
-                            setPlans([...plans, { id, ...plan } as StudyPlan])
-                            setShowCreateModal(false)
-                            setNewPlanTitle('')
-                            setNewPlanDescription('')
-                            setNewPlanJson('[{"day":1,"topic":"Sample","passages":["Genesis 1"]}]')
-                          }
-                        } catch (err: any) {
-                          alert('Invalid JSON or error saving plan')
-                        }
-                      }}
-                    >
-                      Save
-                    </button>
-                  </div>
+              <Modal open={true} onClose={() => setShowCreateModal(false)} title="Create Custom Plan">
+                <div className="space-y-4">
+                  <input
+                    type="text"
+                    className="w-full border px-3 py-2 rounded"
+                    placeholder="Title"
+                    value={newPlanTitle}
+                    onChange={(e) => setNewPlanTitle(e.target.value)}
+                  />
+                  <textarea
+                    className="w-full border px-3 py-2 rounded"
+                    placeholder="Description"
+                    value={newPlanDescription}
+                    onChange={(e) => setNewPlanDescription(e.target.value)}
+                  />
+                  <textarea
+                    className="w-full border px-3 py-2 rounded font-mono text-xs h-40"
+                    placeholder="Readings JSON (array of day objects)"
+                    value={newPlanJson}
+                    onChange={(e) => setNewPlanJson(e.target.value)}
+                  />
                 </div>
-              </div>
+                <div className="flex justify-end gap-3 mt-6">
+                  <button
+                    className="px-4 py-2 bg-gray-200 rounded"
+                    onClick={() => setShowCreateModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="px-4 py-2 bg-amber-500 text-white rounded"
+                    onClick={async () => {
+                      try {
+                        const readings = JSON.parse(newPlanJson)
+                        const plan: Omit<StudyPlan, 'id'> = {
+                          title: newPlanTitle,
+                          description: newPlanDescription,
+                          duration: readings.length,
+                          readings,
+                        }
+                        const id = await createStudyPlan(plan)
+                        if (id) {
+                          setPlans([...plans, { id, ...plan } as StudyPlan])
+                          setShowCreateModal(false)
+                          setNewPlanTitle('')
+                          setNewPlanDescription('')
+                          setNewPlanJson('[{"day":1,"topic":"Sample","passages":["Genesis 1"]}]')
+                        }
+                      } catch (err: any) {
+                        alert('Invalid JSON or error saving plan')
+                      }
+                    }}
+                  >
+                    Save
+                  </button>
+                </div>
+              </Modal>
             )}
           </div>
         </div>
