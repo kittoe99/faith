@@ -9,7 +9,7 @@ import Bible from '@/components/Bible'
 import BibleStudy from '@/components/BibleStudy'
 import Tasks from '@/components/Tasks'
 import Journal from '@/components/Journal'
-import Resources from '@/components/Resources'
+import IncomeTithes from '@/components/IncomeTithes'
 import AiChat from '@/components/AiChat'
 import ChatModal from '@/components/ChatModal'
 import { AuthGuard } from '@/components/AuthGuard'
@@ -42,6 +42,7 @@ export default function Home() {
       tasks: 'Tasks',
       journal: 'Journal',
       resources: 'Resources',
+      'income-tithes': 'Income & Tithes',
       ai: 'Ai Chat'
     }
     setPageTitle(titles[section] || 'Dashboard')
@@ -59,8 +60,8 @@ export default function Home() {
         return <Tasks />
       case 'journal':
         return <Journal />
-      case 'resources':
-        return <Resources />
+      case 'income-tithes':
+        return <IncomeTithes />
       case 'ai':
         return <AiChat />
       default:

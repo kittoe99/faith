@@ -18,7 +18,7 @@ export default function Navigation({ activeSection }: NavigationProps) {
     { id: 'bible-study', label: 'Bible Study', icon: 'fas fa-graduation-cap' },
     { id: 'tasks', label: 'Tasks', icon: 'fas fa-tasks' },
     { id: 'journal', label: 'Journal', icon: 'fas fa-feather-alt' },
-    { id: 'resources', label: 'Resources', icon: 'fas fa-toolbox' },
+    { id: 'income-tithes', label: 'Income & Tithes', icon: 'fas fa-hand-holding-usd' },
   ]
 
   useEffect(() => {

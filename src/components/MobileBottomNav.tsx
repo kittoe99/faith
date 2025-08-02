@@ -14,7 +14,7 @@ const menuItems = [
   { id: "bible-study", label: "Study", icon: "fas fa-graduation-cap" },
   { id: "tasks", label: "Tasks", icon: "fas fa-tasks" },
   { id: "journal", label: "Journal", icon: "fas fa-feather-alt" },
-  { id: "resources", label: "Resources", icon: "fas fa-toolbox" },
+  { id: "income-tithes", label: "Income & Tithes", icon: "fas fa-hand-holding-usd" },
   { id: "ai", label: "Ai", icon: "fas fa-robot" }
 
 ];
